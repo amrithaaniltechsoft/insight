@@ -51,9 +51,10 @@ async function fetchSearchData(): Promise<{ services: SearchServiceData[]; categ
 
     const services: SearchServiceData[] = [];
     for (let i = 0; i < results.length; i++) {
-      if (results[i].status === 'fulfilled' && results[i].value?.services) {
+      const r = results[i];
+      if (r.status === 'fulfilled' && r.value?.services) {
         const cat = cats[i];
-        for (const svc of results[i].value.services) {
+        for (const svc of r.value.services) {
           services.push({
             title: svc.title || svc.service_name,
             slug: svc.slug,
