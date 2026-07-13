@@ -17,6 +17,8 @@ const inter = Inter({
   variable: "--font-body",
 });
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Insight Health Services | Private Ultrasound & Physio",
   description: "Premium private pregnancy scans, clinical diagnostics, and physiotherapy.",
