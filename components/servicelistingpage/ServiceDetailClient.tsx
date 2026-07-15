@@ -278,7 +278,16 @@ export default function ServiceDetailClient({
                   </p>
                   <div className="relative aspect-video w-full overflow-hidden rounded-[2rem] border border-[#E0A2F5]/20 shadow-lg bg-black">
                     <iframe
-                      src={videoLink.replace('watch?v=', 'embed/').split('&')[0]}
+                      src={(() => {
+                        try {
+                          const u = new URL(videoLink);
+                          if (u.hostname.includes('youtu.be')) return `https://www.youtube.com/embed${u.pathname}`;
+                          if (u.pathname.startsWith('/shorts/')) return `https://www.youtube.com/embed${u.pathname.replace('/shorts/', '/')}`;
+                          const vid = u.searchParams.get('v');
+                          if (vid) return `https://www.youtube.com/embed/${vid}`;
+                          return videoLink;
+                        } catch { return videoLink; }
+                      })()}
                       title="Service walkthrough video"
                       className="absolute inset-0 w-full h-full"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

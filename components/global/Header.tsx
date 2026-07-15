@@ -242,7 +242,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
       {/* ========================================================================= */}
       {/* 1. DESKTOP HEADER (Screen widths lg and up) */}
       {/* ========================================================================= */}
-      <div className="hidden min-[1300px]:block w-full">
+      <div className="hidden min-[1278px]:block w-full">
         <div className="container relative mx-auto flex flex-col px-4 lg:px-6">
           {/* OVERLAPPING LOGO */}
           <Link
@@ -451,15 +451,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                 >
                   <Search size={16} />
                 </button>
-                <Button
-                  variant="primary"
-                  icon={<CalendarDays size={16} />}
-                  iconPosition="left"
-                  className="!px-5 !py-2.5 !text-[13px]"
-                >
-                  <span className="hidden 2xl:inline">Book Appointment</span>
-                  <span className="2xl:hidden">Book</span>
-                </Button>
+
               </div>
             </div>
           </div>
@@ -469,7 +461,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
       {/* ========================================================================= */}
       {/* 2. MOBILE HEADER (Screen widths below lg) */}
       {/* ========================================================================= */}
-      <div className="min-[1300px]:hidden w-full relative z-[60]">
+      <div className="min-[1278px]:hidden w-full relative z-[60]">
 
         {/* Top Navbar Layer */}
         <div className="flex h-16 items-center justify-between px-6 border-b border-zinc-100 bg-white">
