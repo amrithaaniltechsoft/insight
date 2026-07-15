@@ -26,7 +26,8 @@ async function fetchCms(id: number): Promise<CmsItem | null> {
     const json = await res.json();
     return json?.data ?? null;
   } catch {
-    return null;
+    return null;  
+    
   }
 }
 
