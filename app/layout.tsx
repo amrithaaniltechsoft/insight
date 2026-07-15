@@ -117,9 +117,10 @@ export default async function RootLayout({
   let contact2 = '07777 138 166';
   let searchData: { services: SearchServiceData[]; categories: SearchCategoryData[]; blogs: SearchBlogData[] } = { services: [], categories: [], blogs: [] };
   try {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
     const [catRes, contactRes, searchResult] = await Promise.all([
-      fetch('http://127.0.0.1:8000/api/categories', { next: { revalidate: 60 } }),
-      fetch('http://127.0.0.1:8000/api/contact', { cache: 'no-store' }),
+      fetch(`${API_URL}/categories`, { next: { revalidate: 60 } }),
+      fetch(`${API_URL}/contact`, { cache: 'no-store' }),
       fetchSearchData(),
     ]);
     if (catRes.ok) categories = await catRes.json();
