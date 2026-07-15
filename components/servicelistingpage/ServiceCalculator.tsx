@@ -17,8 +17,6 @@ export default function ServiceCalculator({ slug, title, subtitle }: ServiceCalc
   const [gestationWeek, setGestationWeek] = useState<number>(12);
 
   // Selector states for other slugs
-  const [selectedDiagnosticArea, setSelectedDiagnosticArea] = useState<string>("Upper Abdomen");
-  const [selectedPhysioIssue, setSelectedPhysioIssue] = useState<string>("Spinal/Joint Mobilization");
   const [selectedBloodGoal, setSelectedBloodGoal] = useState<string>("General Wellness");
 
   // Pregnancy recommendation logic
@@ -206,47 +204,25 @@ export default function ServiceCalculator({ slug, title, subtitle }: ServiceCalc
             {/* WIDGET FOR CLINICAL DIAGNOSTICS */}
             {slug === "diagnostics" && (
               <div className="flex flex-col gap-6">
-                <div>
-                  <label className="font-display text-xs font-bold uppercase tracking-wider text-[#2D2136]/50">Select Target Area / Symptom</label>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {diagnosticAreas.map((area, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedDiagnosticArea(area.name)}
-                        className={`rounded-full px-4 py-2 font-body text-xs font-semibold border transition-all cursor-pointer ${
-                          selectedDiagnosticArea === area.name
-                            ? "bg-[#F000E2] text-white border-[#F000E2]"
-                            : "bg-[#FCFAFD] border-zinc-200 text-[#2D2136] hover:border-[#F000E2]"
-                        }`}
-                      >
-                        {area.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t border-zinc-100 pt-6">
+                <div className="pt-2">
                   <h4 className="font-display text-sm font-bold text-[#2D2136] mb-4">Recommended Ultrasound Assessment:</h4>
-                  {diagnosticAreas.filter(a => a.name === selectedDiagnosticArea).map((area, idx) => (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="rounded-2xl bg-[#FCFAFD] border border-zinc-200 p-6 flex flex-col justify-between md:flex-row md:items-center gap-4"
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-2xl bg-[#FCFAFD] border border-zinc-200 p-6 flex flex-col justify-between md:flex-row md:items-center gap-4"
+                  >
+                    <div>
+                      <span className="font-display text-[10px] font-black uppercase text-[#F000E2] tracking-wider">Clinical Scan</span>
+                      <h5 className="font-display text-lg font-bold text-[#2D2136] mt-1">{diagnosticAreas[0].scan}</h5>
+                      <p className="font-body text-xs text-[#2D2136]/75 mt-1">{diagnosticAreas[0].desc}</p>
+                    </div>
+                    <Link
+                      href={diagnosticAreas[0].href}
+                      className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#1E227D] px-5 py-2.5 font-body text-xs font-bold text-white hover:bg-[#1E227D]/90 transition-colors"
                     >
-                      <div>
-                        <span className="font-display text-[10px] font-black uppercase text-[#F000E2] tracking-wider">Clinical Scan</span>
-                        <h5 className="font-display text-lg font-bold text-[#2D2136] mt-1">{area.scan}</h5>
-                        <p className="font-body text-xs text-[#2D2136]/75 mt-1">{area.desc}</p>
-                      </div>
-                      <Link
-                        href={area.href}
-                        className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#1E227D] px-5 py-2.5 font-body text-xs font-bold text-white hover:bg-[#1E227D]/90 transition-colors"
-                      >
-                        View Details <ChevronRight size={14} className="ml-1" />
-                      </Link>
-                    </motion.div>
-                  ))}
+                      View Details <ChevronRight size={14} className="ml-1" />
+                    </Link>
+                  </motion.div>
                 </div>
               </div>
             )}
@@ -254,47 +230,25 @@ export default function ServiceCalculator({ slug, title, subtitle }: ServiceCalc
             {/* WIDGET FOR EXPERT PHYSIOTHERAPY */}
             {slug === "physiotherapy" && (
               <div className="flex flex-col gap-6">
-                <div>
-                  <label className="font-display text-xs font-bold uppercase tracking-wider text-[#2D2136]/50">Select Joint/Pain Issue</label>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {physioIssues.map((issue, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedPhysioIssue(issue.issue)}
-                        className={`rounded-full px-4 py-2 font-body text-xs font-semibold border transition-all cursor-pointer ${
-                          selectedPhysioIssue === issue.issue
-                            ? "bg-[#F000E2] text-white border-[#F000E2]"
-                            : "bg-[#FCFAFD] border-zinc-200 text-[#2D2136] hover:border-[#F000E2]"
-                        }`}
-                      >
-                        {issue.issue}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="border-t border-zinc-100 pt-6">
+                <div className="pt-2">
                   <h4 className="font-display text-sm font-bold text-[#2D2136] mb-4">Recommended Care Pathway:</h4>
-                  {physioIssues.filter(i => i.issue === selectedPhysioIssue).map((issue, idx) => (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="rounded-2xl bg-[#FCFAFD] border border-zinc-200 p-6 flex flex-col justify-between md:flex-row md:items-center gap-4"
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-2xl bg-[#FCFAFD] border border-zinc-200 p-6 flex flex-col justify-between md:flex-row md:items-center gap-4"
+                  >
+                    <div>
+                      <span className="font-display text-[10px] font-black uppercase text-[#F000E2] tracking-wider">Physio Pathway</span>
+                      <h5 className="font-display text-lg font-bold text-[#2D2136] mt-1">{physioIssues[0].therapy}</h5>
+                      <p className="font-body text-xs text-[#2D2136]/75 mt-1">{physioIssues[0].desc}</p>
+                    </div>
+                    <Link
+                      href={physioIssues[0].href}
+                      className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#1E227D] px-5 py-2.5 font-body text-xs font-bold text-white hover:bg-[#1E227D]/90 transition-colors"
                     >
-                      <div>
-                        <span className="font-display text-[10px] font-black uppercase text-[#F000E2] tracking-wider">Physio Pathway</span>
-                        <h5 className="font-display text-lg font-bold text-[#2D2136] mt-1">{issue.therapy}</h5>
-                        <p className="font-body text-xs text-[#2D2136]/75 mt-1">{issue.desc}</p>
-                      </div>
-                      <Link
-                        href={issue.href}
-                        className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#1E227D] px-5 py-2.5 font-body text-xs font-bold text-white hover:bg-[#1E227D]/90 transition-colors"
-                      >
-                        View Details <ChevronRight size={14} className="ml-1" />
-                      </Link>
-                    </motion.div>
-                  ))}
+                      View Details <ChevronRight size={14} className="ml-1" />
+                    </Link>
+                  </motion.div>
                 </div>
               </div>
             )}

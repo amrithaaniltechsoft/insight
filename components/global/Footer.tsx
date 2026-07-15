@@ -18,6 +18,12 @@ interface ContactData {
   sunday: string;
 }
 
+interface FooterService {
+  title: string;
+  slug: string;
+  categorySlug: string;
+}
+
 async function getContact(): Promise<ContactData> {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
   try {
@@ -53,8 +59,35 @@ async function getCms(id: number): Promise<string | null> {
   }
 }
 
+async function getFooterServices(): Promise<FooterService[]> {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+  try {
+    const catRes = await fetch(`${API_URL}/categories`, { next: { revalidate: 60 } });
+    if (!catRes.ok) return [];
+    const cats: { slug: string }[] = await catRes.json();
+    const results = await Promise.allSettled(
+      cats.map(c =>
+        fetch(`${API_URL}/services/category/${c.slug}`, { next: { revalidate: 60 } }).then(r => r.ok ? r.json() : null)
+      )
+    );
+    const services: FooterService[] = [];
+    for (let i = 0; i < results.length; i++) {
+      const r = results[i];
+      if (r.status === 'fulfilled' && r.value?.services) {
+        const catSlug = cats[i].slug;
+        for (const svc of r.value.services) {
+          services.push({ title: svc.title || svc.service_name, slug: svc.slug, categorySlug: catSlug });
+        }
+      }
+    }
+    return services;
+  } catch {
+    return [];
+  }
+}
+
 export default async function Footer({ categories = [] }: { categories?: CategoryItem[] }) {
-  const [contact, cms12] = await Promise.all([getContact(), getCms(12)]);
+  const [contact, cms12, footerServices] = await Promise.all([getContact(), getCms(12), getFooterServices()]);
   return (
     <footer className="relative w-full bg-gradient-to-r from-[#1A0B66] to-[#3D1052] pt-20 pb-10 text-white">
       {/* TOP WAVE DIVIDER */}
@@ -156,7 +189,7 @@ export default async function Footer({ categories = [] }: { categories?: Categor
             </h4>
             <nav className="flex flex-col gap-3 font-body text-[14.5px] text-white/70">
               <Link href="/about" className="transition-colors hover:text-[#F000E2]">About The Clinic</Link>
-              <Link href="/about" className="transition-colors hover:text-[#F000E2]">Meet Our Specialists</Link>
+              <Link href="/serviceslisting/all" className="transition-colors hover:text-[#F000E2]">Meet Our Specialists</Link>
               <Link href="/reviews" className="transition-colors hover:text-[#F000E2]">Patient Reviews</Link>
               <Link href="/blogs" className="transition-colors hover:text-[#F000E2]">Health & Wellness Blog</Link>
               <Link href="/faq" className="transition-colors hover:text-[#F000E2]">Frequently Asked Questions</Link>
@@ -240,34 +273,21 @@ export default async function Footer({ categories = [] }: { categories?: Categor
           />
         </div>
 
-        {/* Areas We Serve */}
+        {/* Our Services */}
         <div className="border-b border-white/10 py-10">
           <h5 className="font-display text-xs font-bold uppercase tracking-[0.2em] text-[#F000E2] text-center mb-8">
-            Areas We Serve
+            Our Services
           </h5>
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 font-body text-xs text-white/50 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            <span className="transition-colors hover:text-white cursor-default">Walsall</span>
-            <span className="transition-colors hover:text-white cursor-default">Birmingham</span>
-            <span className="transition-colors hover:text-white cursor-default">Dudley</span>
-            <span className="transition-colors hover:text-white cursor-default">Wolverhampton</span>
-            <span className="transition-colors hover:text-white cursor-default">West Bromwich</span>
-            <span className="transition-colors hover:text-white cursor-default">Sutton Coldfield</span>
-            <span className="transition-colors hover:text-white cursor-default">Lichfield</span>
-            <span className="transition-colors hover:text-white cursor-default">Solihull</span>
-            <span className="transition-colors hover:text-white cursor-default">Great Barr</span>
-            <span className="transition-colors hover:text-white cursor-default">Perry Barr</span>
-            <span className="transition-colors hover:text-white cursor-default">Handsworth</span>
-            <span className="transition-colors hover:text-white cursor-default">Tamworth</span>
-            <span className="transition-colors hover:text-white cursor-default">Cannock</span>
-            <span className="transition-colors hover:text-white cursor-default">Coventry</span>
-            <span className="transition-colors hover:text-white cursor-default">Redditch</span>
-            <span className="transition-colors hover:text-white cursor-default">Bilston</span>
-            <span className="transition-colors hover:text-white cursor-default">Bloxwich</span>
-            <span className="transition-colors hover:text-white cursor-default">Worcestershire</span>
-            <span className="transition-colors hover:text-white cursor-default">Kidderminster</span>
-            <span className="transition-colors hover:text-white cursor-default">Brierley Hill</span>
-            <span className="transition-colors hover:text-white cursor-default">Merry Hill</span>
-            <span className="transition-colors hover:text-white cursor-default">Wednesbury</span>
+            {[...footerServices].filter(s => s.title.length <= 28).reverse().slice(0, 24).map((svc, i) => (
+              <Link
+                key={i}
+                href={svc.categorySlug === 'blood-tests' ? `/blood-tests#${svc.slug}` : `/serviceslisting/${svc.categorySlug}/${svc.slug}`}
+                className="transition-colors hover:text-white"
+              >
+                {svc.title}
+              </Link>
+            ))}
           </div>
         </div>
 

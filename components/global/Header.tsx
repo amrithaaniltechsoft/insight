@@ -451,7 +451,14 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                 >
                   <Search size={16} />
                 </button>
-
+                <Button
+                  variant="primary"
+                  icon={<CalendarDays size={16} />}
+                  iconPosition="left"
+                  className="!px-5 !py-2.5 !text-[13px] whitespace-nowrap"
+                >
+                  Book Now
+                </Button>
               </div>
             </div>
           </div>
