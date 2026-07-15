@@ -326,7 +326,7 @@ export default function ContactContent({ contact }: ContactContentProps) {
           {/* Interactive Google Map Section */}
           <div className="mt-16 overflow-hidden rounded-[2.5rem] border border-zinc-200 shadow-lg h-[450px] w-full">
             <iframe
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2424.4927236521576!2d-1.9701768841893322!3d52.57867377982548!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4870a4175bca6fdf%3A0xe5a3c9b7405e3f53!2s1a%20Walsall%20Rd%2C%20Walsall%20WS5%204QL%2C%20UK!5e0!3m2!1sen!2sus!4v1680000000000!5m2!1sen!2sus"
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3009.912580375504!2d-1.9771834229683511!3d52.558455133381294!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4870a3e6bdb711ff%3A0xa7585efd65fb6193!2sInsight%20Health%20Services%20Ltd!5e1!3m2!1sen!2sin!4v1784107993446!5m2!1sen!2sin"
               width="100%"
               height="100%"
               style={{ border: 0 }}

@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/global/Header";
 import Footer from "@/components/global/Footer";
 import FloatingContactIsland from "@/components/global/FloatingContactIsland";
+import CookieConsent from "@/components/global/CookieConsent";
 
 // Display Font (Headings)
 const plusJakarta = Plus_Jakarta_Sans({
@@ -38,11 +39,37 @@ interface SearchCategoryData {
   description: string;
 }
 
-async function fetchSearchData(): Promise<{ services: SearchServiceData[]; categories: SearchCategoryData[] }> {
+interface SearchBlogData {
+  title: string;
+  slug: string;
+  category: string;
+  readTime: string;
+  summary: string;
+}
+
+async function fetchSearchData(): Promise<{ services: SearchServiceData[]; categories: SearchCategoryData[]; blogs: SearchBlogData[] }> {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
   try {
-    const catRes = await fetch(`${API_URL}/categories`, { next: { revalidate: 60 } });
-    if (!catRes.ok) return { services: [], categories: [] };
+    const [catRes, blogsRes] = await Promise.all([
+      fetch(`${API_URL}/categories`, { next: { revalidate: 60 } }),
+      fetch(`${API_URL}/blogs`, { cache: 'no-store' }),
+    ]);
+
+    const blogs: SearchBlogData[] = [];
+    if (blogsRes.ok) {
+      const blogData: { title: string; slug: string; category: string; description: string; created_at: string }[] = await blogsRes.json();
+      for (const blog of blogData) {
+        blogs.push({
+          title: blog.title,
+          slug: blog.slug,
+          category: blog.category || 'General',
+          readTime: '5 min read',
+          summary: blog.description?.replace(/<[^>]*>/g, '').substring(0, 150) + '...' || '',
+        });
+      }
+    }
+
+    if (!catRes.ok) return { services: [], categories: [], blogs };
     const cats: { id: number; name: string; slug: string; description: string }[] = await catRes.json();
 
     const results = await Promise.allSettled(
@@ -74,9 +101,9 @@ async function fetchSearchData(): Promise<{ services: SearchServiceData[]; categ
       description: c.description || '',
     }));
 
-    return { services, categories };
+    return { services, categories, blogs };
   } catch {
-    return { services: [], categories: [] };
+    return { services: [], categories: [], blogs: [] };
   }
 }
 
@@ -88,7 +115,7 @@ export default async function RootLayout({
   let categories: { id: number; name: string; slug: string }[] = [];
   let contact1 = '01922 351933';
   let contact2 = '07777 138 166';
-  let searchData: { services: SearchServiceData[]; categories: SearchCategoryData[] } = { services: [], categories: [] };
+  let searchData: { services: SearchServiceData[]; categories: SearchCategoryData[]; blogs: SearchBlogData[] } = { services: [], categories: [], blogs: [] };
   try {
     const [catRes, contactRes, searchResult] = await Promise.all([
       fetch('http://127.0.0.1:8000/api/categories', { next: { revalidate: 60 } }),
@@ -114,6 +141,7 @@ export default async function RootLayout({
         {children}
         <Footer categories={categories} />
         <FloatingContactIsland contact1={contact1} contact2={contact2} />
+        <CookieConsent />
       </body>
     </html>
   );

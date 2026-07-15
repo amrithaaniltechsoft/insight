@@ -63,7 +63,7 @@ export default function ServiceSearchBar({
 
         {/* Category Custom Dropdown */}
         {!hideCategorySelect && (
-          <div className="relative md:col-span-3">
+          <div className="relative md:col-span-4">
             <button
               type="button"
               onClick={() => {
@@ -71,13 +71,13 @@ export default function ServiceSearchBar({
                 setIsServiceDropdownOpen(false);
               }}
               onBlur={() => setTimeout(() => setIsCategoryDropdownOpen(false), 200)}
-              className="w-full flex items-center justify-between gap-2 rounded-lg bg-white  border border-[#1E227D]/40 px-4 py-3 font-body text-sm transition hover:bg-zinc-50 focus:border-[#1E227D] focus:outline-none focus:ring-2 focus:ring-[#1E227D]/20"
+              className="w-full flex items-center justify-between gap-2 rounded-lg bg-white border border-[#1E227D]/40 px-5 py-3 font-body text-base transition hover:bg-zinc-50 focus:border-[#1E227D] focus:outline-none focus:ring-2 focus:ring-[#1E227D]/20"
             >
               <span className={selectedCategory ? "text-zinc-800" : "text-zinc-400"}>
                 {selectedCategoryLabel}
               </span>
               <ChevronDown
-                size={18}
+                size={20}
                 className={`flex-shrink-0 text-zinc-500 transition-transform duration-200 ${isCategoryDropdownOpen ? "rotate-180" : ""
                   }`}
               />
@@ -100,7 +100,7 @@ export default function ServiceSearchBar({
         )}
 
         {/* Service Search Input */}
-        <div className={`relative ${hideCategorySelect ? "md:col-span-8" : "md:col-span-5"}`}>
+        <div className={`relative ${hideCategorySelect ? "md:col-span-8" : "md:col-span-4"}`}>
           <input
             type="text"
             placeholder="Select a service"
@@ -117,7 +117,7 @@ export default function ServiceSearchBar({
             onFocus={() => setIsServiceDropdownOpen(true)}
             onBlur={() => setTimeout(() => setIsServiceDropdownOpen(false), 200)}
             disabled={!hideCategorySelect && !selectedCategory}
-            className="w-full rounded-lg border border-[#1E227D]/40 bg-white px-4 py-3 font-body text-sm text-zinc-800 placeholder:text-zinc-400 transition hover:bg-zinc-50/80 focus:border-[#1E227D] focus:outline-none focus:ring-2 focus:ring-[#1E227D]/20 disabled:cursor-not-allowed disabled:opacity-80"
+            className="w-full rounded-lg border border-[#1E227D]/40 bg-white px-5 py-3 font-body text-base text-zinc-800 placeholder:text-zinc-400 transition hover:bg-zinc-50/80 focus:border-[#1E227D] focus:outline-none focus:ring-2 focus:ring-[#1E227D]/20 disabled:cursor-not-allowed disabled:opacity-80"
           />
 
           {isServiceDropdownOpen && (hideCategorySelect || selectedCategory) && filteredServices.length > 0 && (

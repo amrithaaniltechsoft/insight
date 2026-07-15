@@ -5,39 +5,32 @@ import { motion, useAnimationFrame, useMotionValue, useTransform } from "framer-
 import { Star } from "lucide-react";
 import GoldenDragonWave from "./GoldenDragonWave";
 
+const FALLBACK_REVIEWS = [
+  { name: "Sarah Jenkins", date: "2 weeks ago", text: "Absolutely phenomenal experience. The 4D scan was incredibly clear, and the sonographer was so warm and reassuring. The clinic feels like a premium spa.", rating: "5.0" },
+  { name: "David Aris", date: "1 month ago", text: "I needed an urgent DVT scan and was seen within 2 hours. The medical team was highly professional, and getting the report immediately gave me absolute peace of mind.", rating: "5.0" },
+  { name: "Emily R.", date: "2 months ago", text: "The best physiotherapy I've ever received. After months of chronic back pain, their ultrasound-guided injections completely changed my daily life. Highly recommended.", rating: "5.0" },
+  { name: "Chloe T.", date: "3 months ago", text: "Booked an early reassurance scan. The staff went above and beyond to make my husband and I feel comfortable. Spotlessly clean clinic and top-tier equipment.", rating: "5.0" },
+  { name: "Michael B.", date: "4 months ago", text: "Extremely efficient well-man blood tests. No NHS waiting lists, incredibly professional phlebotomists, and my detailed results were back the next morning.", rating: "5.0" },
+];
+
 export default function GoogleReviews() {
-  const reviews = [
-    {
-      name: "Sarah Jenkins",
-      date: "2 weeks ago",
-      text: "Absolutely phenomenal experience. The 4D scan was incredibly clear, and the sonographer was so warm and reassuring. The clinic feels like a premium spa.",
-      rating: "5.0",
-    },
-    {
-      name: "David Aris",
-      date: "1 month ago",
-      text: "I needed an urgent DVT scan and was seen within 2 hours. The medical team was highly professional, and getting the report immediately gave me absolute peace of mind.",
-      rating: "5.0",
-    },
-    {
-      name: "Emily R.",
-      date: "2 months ago",
-      text: "The best physiotherapy I’ve ever received. After months of chronic back pain, their ultrasound-guided injections completely changed my daily life. Highly recommended.",
-      rating: "5.0",
-    },
-    {
-      name: "Chloe T.",
-      date: "3 months ago",
-      text: "Booked an early reassurance scan. The staff went above and beyond to make my husband and I feel comfortable. Spotlessly clean clinic and top-tier equipment.",
-      rating: "5.0",
-    },
-    {
-      name: "Michael B.",
-      date: "4 months ago",
-      text: "Extremely efficient well-man blood tests. No NHS waiting lists, incredibly professional phlebotomists, and my detailed results were back the next morning.",
-      rating: "5.0",
-    },
-  ];
+  const [reviews, setReviews] = useState(FALLBACK_REVIEWS);
+  const [rating, setRating] = useState(5.0);
+  const [totalRatings, setTotalRatings] = useState(0);
+
+  useEffect(() => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+    fetch(`${API_URL}/reviews`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data && data.reviews && data.reviews.length > 0) {
+          setReviews(data.reviews);
+          setRating(data.rating || 5.0);
+          setTotalRatings(data.total_ratings || 0);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const [width, setWidth] = useState(0);
   const measureRef = useRef<HTMLDivElement>(null);
@@ -156,6 +149,17 @@ export default function GoogleReviews() {
         <motion.h2 variants={itemVariants} className="font-display text-4xl font-bold tracking-tight text-[#2D2136] md:text-5xl">
           Trusted by <span className="text-[#2D2136]/80">Hundreds</span> of Patients
         </motion.h2>
+        {totalRatings > 0 && (
+          <motion.div variants={itemVariants} className="mt-4 flex items-center gap-2">
+            <div className="flex items-center gap-0.5">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} size={16} className={i < Math.round(rating) ? "fill-[#E1BE03] text-[#E1BE03]" : "fill-zinc-300 text-zinc-300"} />
+              ))}
+            </div>
+            <span className="font-display text-lg font-bold text-[#2D2136]">{rating.toFixed(1)}</span>
+            <span className="font-body text-sm text-[#2D2136]/60">({totalRatings} Google reviews)</span>
+          </motion.div>
+        )}
         <motion.p variants={itemVariants} className="mt-5 max-w-2xl font-body text-lg text-[#2D2136]/80">
           Do not just take our word for it. Read what our patients have to say about their private healthcare experiences.
         </motion.p>

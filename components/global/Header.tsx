@@ -7,7 +7,6 @@ import { ChevronDown, CalendarDays, Phone, Menu, X, Search, ClipboardList } from
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
 import { navigationData as staticNavigationData } from "./navigation";
-import { BLOG_POSTS_DETAIL } from "@/components/blogs/blogData";
 
 interface Category {
   id: number;
@@ -59,10 +58,18 @@ interface SearchCategoryData {
   description: string;
 }
 
+interface SearchBlogData {
+  title: string;
+  slug: string;
+  category: string;
+  readTime: string;
+  summary: string;
+}
+
 export default function Header({ contact1 = '01922 351933', contact2 = '07777 138 166', searchData }: {
   contact1?: string;
   contact2?: string;
-  searchData?: { services: SearchServiceData[]; categories: SearchCategoryData[] };
+  searchData?: { services: SearchServiceData[]; categories: SearchCategoryData[]; blogs: SearchBlogData[] };
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
@@ -235,7 +242,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
       {/* ========================================================================= */}
       {/* 1. DESKTOP HEADER (Screen widths lg and up) */}
       {/* ========================================================================= */}
-      <div className="hidden lg:block w-full">
+      <div className="hidden min-[1300px]:block w-full">
         <div className="container relative mx-auto flex flex-col px-4 lg:px-6">
           {/* OVERLAPPING LOGO */}
           <Link
@@ -284,7 +291,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
 
             {/* BOTTOM LAYER (Primary Services & Booking) */}
             <div className="flex h-16 items-center justify-between">
-              <div className="flex items-center gap-3.5 lg:gap-4 xl:gap-6">
+              <div className="flex items-center gap-3 2xl:gap-6">
                 {navigationData.map((item, idx) => {
                   const IconComponent = item.icon;
                   // Derive the category slug from the href (e.g. /serviceslisting/pregnancy-scans => pregnancy-scans)
@@ -299,7 +306,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                     >
                       <Link
                         href={item.href}
-                        className="flex items-center gap-1.5 font-display text-[12px] xl:text-[13px] font-bold text-[#2D2136] transition-colors hover:text-[#F000E2] whitespace-nowrap"
+                        className="flex items-center gap-1.5 font-display text-[12px] 2xl:text-[13px] font-bold text-[#2D2136] transition-colors hover:text-[#F000E2] whitespace-nowrap"
                       >
                         <IconComponent size={15} className="text-[#F000E2]" />
                         {item.label}
@@ -436,7 +443,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
               </div>
 
               {/* Re-located Primary CTA */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 2xl:gap-3">
                 <button
                   onClick={() => setIsSearchOpen(true)}
                   className="flex items-center justify-center p-2.5 rounded-full border border-zinc-200 text-[#2D2136] hover:bg-zinc-50 hover:border-[#F000E2] hover:text-[#F000E2] transition-all"
@@ -450,7 +457,8 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                   iconPosition="left"
                   className="!px-5 !py-2.5 !text-[13px]"
                 >
-                  Book Appointment
+                  <span className="hidden 2xl:inline">Book Appointment</span>
+                  <span className="2xl:hidden">Book</span>
                 </Button>
               </div>
             </div>
@@ -461,7 +469,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
       {/* ========================================================================= */}
       {/* 2. MOBILE HEADER (Screen widths below lg) */}
       {/* ========================================================================= */}
-      <div className="lg:hidden w-full relative z-[60]">
+      <div className="min-[1300px]:hidden w-full relative z-[60]">
 
         {/* Top Navbar Layer */}
         <div className="flex h-16 items-center justify-between px-6 border-b border-zinc-100 bg-white">
@@ -914,11 +922,10 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                   }
 
                   // Search Blogs
-                  const matchingBlogs = BLOG_POSTS_DETAIL.filter(
+                  const matchingBlogs = (searchData?.blogs || []).filter(
                     (post) =>
                       post.title.toLowerCase().includes(query) ||
-                      post.summary.toLowerCase().includes(query) ||
-                      post.tags.some((tag) => tag.toLowerCase().includes(query))
+                      post.summary.toLowerCase().includes(query)
                   );
 
                   if (matchingServices.length === 0 && matchingBlogs.length === 0) {
