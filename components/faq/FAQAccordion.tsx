@@ -9,6 +9,7 @@ interface FAQItem {
   q: string;
   a: string;
   category: string;
+  sub_category?: string | null;
 }
 
 interface FAQAccordionProps {
@@ -18,13 +19,36 @@ interface FAQAccordionProps {
 
 export default function FAQAccordion({ faqs, initialCategory }: FAQAccordionProps) {
   const [activeCategory, setActiveCategory] = useState(initialCategory || "All");
+  const [activeSub, setActiveSub] = useState<string>("All");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const categories = ["All", ...Array.from(new Set(faqs.map(faq => faq.category)))];
 
-  const filteredFaqs = faqs.filter(
-    (faq) => activeCategory === "All" || faq.category === activeCategory
-  );
+  // Get subcategories for active category (excluding null/empty)
+  const subcategories = activeCategory === "All"
+    ? []
+    : ["All", ...Array.from(new Set(
+        faqs.filter(f => f.category === activeCategory && f.sub_category)
+             .map(f => f.sub_category!)
+      ))];
+
+  // Filter by category then subcategory
+  const filteredFaqs = faqs.filter(f => {
+    if (activeCategory !== "All" && f.category !== activeCategory) return false;
+    if (activeSub !== "All" && f.sub_category !== activeSub) return false;
+    return true;
+  });
+
+  const handleCategoryClick = (cat: string) => {
+    setActiveCategory(cat);
+    setActiveSub("All");
+    setOpenFaq(null);
+  };
+
+  const handleSubClick = (sub: string) => {
+    setActiveSub(sub);
+    setOpenFaq(null);
+  };
 
   return (
     <section
@@ -33,8 +57,6 @@ export default function FAQAccordion({ faqs, initialCategory }: FAQAccordionProp
         backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50' width='50' height='50'%3e%3cpath d='M25 20 V30 M20 25 H30' stroke='rgba(181,102,214,0.06)' stroke-width='1.5'/%3e%3c/svg%3e")`,
       }}
     >
-
-      {/* TOP WAVE DIVIDER */}
       <div className="absolute left-0 top-0 z-10 w-full -translate-y-[99%] rotate-180 leading-[0]">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -52,8 +74,6 @@ export default function FAQAccordion({ faqs, initialCategory }: FAQAccordionProp
             d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z"
             fill="#FCFAFD"
           />
-
-          {/* Faint Background Track for the Stroke */}
           <path
             d="M0,27.35 A600.21,600.21,0,0,0,321.39,56.44 c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39 C823.78,31,906.67,72,985.66,92.83 c70.05,18.48,146.53,26.09,214.34,3"
             fill="none"
@@ -62,8 +82,6 @@ export default function FAQAccordion({ faqs, initialCategory }: FAQAccordionProp
             className="opacity-20"
             transform="translate(0, 3)"
           />
-
-          {/* Animated Wave Stroke */}
           <motion.path
             d="M0,27.35 A600.21,600.21,0,0,0,321.39,56.44 c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39 C823.78,31,906.67,72,985.66,92.83 c70.05,18.48,146.53,26.09,214.34,3"
             fill="none"
@@ -84,15 +102,12 @@ export default function FAQAccordion({ faqs, initialCategory }: FAQAccordionProp
       </div>
       <GoldenDragonWave className="opacity-30" />
       <div className="container relative z-10 mx-auto px-6 lg:px-12">
-        {/* Category Filters */}
-        <div className="mb-12 flex flex-wrap justify-center gap-2">
+        {/* Category Tabs */}
+        <div className="mb-6 flex flex-wrap justify-center gap-2">
           {categories.map((category) => (
             <button
               key={category}
-              onClick={() => {
-                setActiveCategory(category);
-                setOpenFaq(null);
-              }}
+              onClick={() => handleCategoryClick(category)}
               className={`rounded-full px-5 py-2.5 font-display text-[13.5px] font-bold transition-all ${activeCategory === category
                   ? "bg-[#1E227D] text-white shadow-md"
                   : "bg-white text-[#2D2136] border border-zinc-200/80 hover:border-[#E0A2F5]/50 hover:bg-zinc-50"
@@ -103,8 +118,29 @@ export default function FAQAccordion({ faqs, initialCategory }: FAQAccordionProp
           ))}
         </div>
 
+        {/* Subcategory Tabs (only when a specific category is selected) */}
+        {activeCategory !== "All" && subcategories.length > 1 && (
+          <div className="mb-10 flex flex-wrap justify-center gap-2">
+            {subcategories.map((sub) => (
+              <button
+                key={sub}
+                onClick={() => handleSubClick(sub)}
+                className={`rounded-full px-4 py-1.5 font-body text-xs font-semibold transition-all ${activeSub === sub
+                    ? "bg-[#F000E2] text-white shadow-sm"
+                    : "bg-white text-[#2D2136]/70 border border-zinc-200/80 hover:border-[#F000E2]/40"
+                  }`}
+              >
+                {sub}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* FAQ List */}
         <div className="mx-auto max-w-4xl">
+          {filteredFaqs.length === 0 && (
+            <p className="text-center font-body text-sm text-zinc-400 py-10">No FAQs found for this selection.</p>
+          )}
           <div className="flex flex-col gap-4">
             {filteredFaqs.map((faq, index) => {
               const isOpen = openFaq === index;

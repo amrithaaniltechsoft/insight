@@ -13,7 +13,7 @@ export default function ServicesSection() {
       description: "From early reassurance to premium 4D HD-Live bonding experiences. Discover the joy of seeing your baby in a warm, welcoming environment.",
       // Replace with a transparent PNG, e.g., a pregnant mother or a 4D ultrasound machine
       image: "/services/pregnancy-scans3.png",
-      href: "/serviceslisting/pregnancy-scans",
+      href: "/services/pregnancy-scans",
       bgColor: "bg-[#FCFAFD]", // Matches Pearl White
     },
     {
@@ -21,7 +21,7 @@ export default function ServicesSection() {
       description: "Rapid, accurate private ultrasounds and blood profiles without the wait. Immediate answers from senior clinical sonographers.",
       // Replace with a transparent PNG, e.g., a stethoscope or medical professional
       image: "/services/clinical-diagnostics.png",
-      href: "/serviceslisting/diagnostics",
+      href: "/services/diagnostics",
       bgColor: "bg-[#F6F0F9]", // Light shade of Purple (#F000E2)
     },
     {
@@ -29,7 +29,7 @@ export default function ServicesSection() {
       description: "Targeted rehabilitation, ultrasound-guided injections, and manual therapy to get you back to your peak physical health.",
       // Replace with a transparent PNG, e.g., a physical therapy exercise or joint graphic
       image: "/services/physiotherapy2.png",
-      href: "/serviceslisting/physiotherapy",
+      href: "/services/physiotherapy",
       bgColor: "bg-[#EAE6EF]", // Muted Mauve to match palette
     }
   ];

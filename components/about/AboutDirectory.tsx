@@ -64,7 +64,7 @@ export default function AboutDirectory() {
     return {
       category: found?.name ?? cfg.slug,
       image: cfg.image,
-      href: `/serviceslisting/${cfg.slug}`,
+      href: `/services/${cfg.slug}`,
       bgColor: cfg.bgColor,
       items: found?.items ?? [],
     };

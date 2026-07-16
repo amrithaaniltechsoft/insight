@@ -123,7 +123,7 @@ export default async function ServiceListingPage({ params }: PageProps) {
 
   // Blood tests has its own dedicated page with a unique design
   if (slug === "blood-tests") {
-    redirect("/blood-tests");
+    redirect("/services/blood-tests");
   }
 
   const { services, faqs, category } = await getServicesForCategory(slug);

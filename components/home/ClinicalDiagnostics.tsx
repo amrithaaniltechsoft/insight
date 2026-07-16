@@ -25,7 +25,7 @@ const FALLBACK_DIAGNOSTICS: DiagnosticCard[] = [
     description: "Private early pregnancy scan for reassurance in the first trimester, pain or bleeding concerns, or confirmation of pregnancy development.",
     image: "/sub-service/gynecologist-performing-ultrasound-consultation.jpg",
     description1: "Early pregnancy confirmation\nHeartbeat detection\nGestational age assessment",
-    href: "/serviceslisting/pregnancy-scans/early-reassurance-scan",
+    href: "/services/pregnancy-scans/early-reassurance-scan",
     bgColor: "bg-[#FCFAFD]",
   },
   {
@@ -33,7 +33,7 @@ const FALLBACK_DIAGNOSTICS: DiagnosticCard[] = [
     description: "Determine your estimated due date accurately with professional crown-rump length measurements and early development check.",
     image: "/services/pregnancy-scans3.png",
     description1: "Accurate due-date calculation\nCrown-rump length measurements\nSingle/multiple pregnancy verification",
-    href: "/serviceslisting/pregnancy-scans/dating-scan",
+    href: "/services/pregnancy-scans/dating-scan",
     bgColor: "bg-white",
   }
 ];

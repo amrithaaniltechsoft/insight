@@ -104,7 +104,7 @@ export default function ServiceListingClient({
 }: ServiceListingClientProps) {
   // Blood tests has its own dedicated page with a different design
   if (slug === "blood-tests") {
-    redirect("/blood-tests");
+    redirect("/services/blood-tests");
   }
 
   // Static fallback data for this category
@@ -135,7 +135,7 @@ export default function ServiceListingClient({
 
   const breadcrumbs = [
     { label: "Home", href: "/" },
-    { label: "Services", href: "/serviceslisting/all" },
+    { label: "Services", href: "/services/all" },
     { label: `${title} ${highlightedTitle}`.trim() },
   ];
 

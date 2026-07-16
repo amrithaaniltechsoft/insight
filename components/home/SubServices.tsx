@@ -51,7 +51,7 @@ const FALLBACK_SERVICES: ServiceCard[] = [
       "Anomaly Scan (Detailed structural check)",
       "Growth & Presentation Scan (Late pregnancy assessment)",
     ],
-    href: "/serviceslisting/pregnancy-scans",
+    href: "/services/pregnancy-scans",
   },
   {
     title: "Clinical Diagnostics",
@@ -66,7 +66,7 @@ const FALLBACK_SERVICES: ServiceCard[] = [
       "Well Man Screening (Abdominal & prostate health)",
       "Aortic Surveillance (AAA surveillance scans)",
     ],
-    href: "/serviceslisting/diagnostics",
+    href: "/services/diagnostics",
   },
   {
     title: "Expert Physiotherapy",
@@ -81,7 +81,7 @@ const FALLBACK_SERVICES: ServiceCard[] = [
       "Steroid Injection Therapy (Quick joint inflammation reduction)",
       "Acupuncture (Complementary pain relief therapy)",
     ],
-    href: "/serviceslisting/physiotherapy",
+    href: "/services/physiotherapy",
   },
   {
     title: "Comprehensive Bloods",
@@ -95,7 +95,7 @@ const FALLBACK_SERVICES: ServiceCard[] = [
       "Rapid Laboratory Turnaround (Often within 24 hours)",
       "Professional Phlebotomy (Comfortable clinical draw)",
     ],
-    href: "/serviceslisting/blood-tests",
+    href: "/services/blood-tests",
   },
   {
     title: "Other Diagnostics",
@@ -106,7 +106,7 @@ const FALLBACK_SERVICES: ServiceCard[] = [
       "Cervical Screening - Coming Soon!",
       "Health MOT - Coming Soon!",
     ],
-    href: "/serviceslisting/other-diagnostics",
+    href: "/services/other-diagnostics",
   },
 ];
 
@@ -174,9 +174,9 @@ export default function SubServices({ services, categories: apiCategories, searc
     const catSlug = match?.categorySlug || selectedCategory;
     if (catSlug) {
       if (catSlug === 'blood-tests') {
-        router.push(`/blood-tests#${service.slug}`);
+        router.push(`/services/blood-tests#${service.slug}`);
       } else {
-        router.push(`/serviceslisting/${catSlug}/${service.slug}`);
+        router.push(`/services/${catSlug}/${service.slug}`);
       }
     }
   };
@@ -191,9 +191,9 @@ export default function SubServices({ services, categories: apiCategories, searc
     const catSlug = match?.categorySlug || selectedCategory;
     if (catSlug && target) {
       if (catSlug === 'blood-tests') {
-        router.push(`/blood-tests#${target.slug}`);
+        router.push(`/services/blood-tests#${target.slug}`);
       } else {
-        router.push(`/serviceslisting/${catSlug}/${target.slug}`);
+        router.push(`/services/${catSlug}/${target.slug}`);
       }
     }
   };

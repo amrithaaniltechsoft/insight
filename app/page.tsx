@@ -74,7 +74,7 @@ async function getPregnancyDiagnostics(): Promise<DiagnosticCard[]> {
       description: s.service_overview || `Professional ${s.service_name} at our Walsall clinic.`,
       image: i === 0 ? "/services/w-checup.png" : "/services/m-checkup.png",
       description1: s.description1 || '',
-      href: `/serviceslisting/pregnancy-scans/${s.slug}`,
+      href: `/services/pregnancy-scans/${s.slug}`,
       bgColor: i === 0 ? "bg-[#FCFAFD]" : "bg-white",
     }));
   } catch {
@@ -186,7 +186,7 @@ async function getServices(): Promise<ServiceCard[]> {
         image: CATEGORY_IMAGES[slug] || '',
         description: cat?.description || '',
         features: (services as { title?: string; service_name?: string }[]).map(s => s.title || s.service_name || '').filter(Boolean),
-        href: `/serviceslisting/${slug}`,
+        href: `/services/${slug}`,
       };
     });
   } catch {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronDown, CalendarDays, Phone, Menu, X, Search, ClipboardList } from "lucide-react";
+import { ChevronDown, ChevronRight, CalendarDays, Phone, Menu, X, Search, ClipboardList } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
 import { navigationData as staticNavigationData } from "./navigation";
@@ -157,7 +157,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
             // Blood Tests has its own dedicated route
             const catHref = catSlug === 'blood-tests'
               ? '/blood-tests'
-              : `/serviceslisting/${catSlug}`;
+              : `/services/${catSlug}`;
 
             const existingNav = staticNavigationData.find(nav =>
               nav.label.toLowerCase() === cat.name.toLowerCase()
@@ -295,7 +295,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
               <div className="flex items-center gap-3 2xl:gap-6">
                 {navigationData.map((item, idx) => {
                   const IconComponent = item.icon;
-                  // Derive the category slug from the href (e.g. /serviceslisting/pregnancy-scans => pregnancy-scans)
+                  // Derive the category slug from the href (e.g. /services/pregnancy-scans => pregnancy-scans)
                   const catSlug = item.href.split('/').pop() || '';
                   const serviceGroups = categoryServicesMap[catSlug];
 
@@ -345,9 +345,10 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                                         return (
                                           <Link
                                             key={gIdx}
-                                            href={`/blood-tests#${subSlug}`}
-                                            className="font-body text-[12.5px] text-[#2D2136]/85 hover:text-[#F000E2] transition-colors py-1"
+                                            href={`/services/blood-tests#${subSlug}`}
+                                            className="font-body text-[12.5px] font-semibold text-[#2D2136]/85 hover:text-[#F000E2] transition-colors py-1 flex items-center gap-1.5"
                                           >
+                                            <ChevronRight size={12} strokeWidth={3} className="shrink-0 opacity-50" />
                                             {group.subcategory}
                                           </Link>
                                         );
@@ -366,9 +367,10 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                                           {group.items.map((svc, sIdx) => (
                                             <Link
                                               key={sIdx}
-                                              href={`/serviceslisting/${catSlug}/${svc.slug}`}
-                                              className="font-body text-[12.5px] text-[#2D2136]/85 hover:text-[#F000E2] transition-colors py-1"
+                                              href={`/services/${catSlug}/${svc.slug}`}
+                                              className="font-body text-[12.5px] font-semibold text-[#2D2136]/85 hover:text-[#F000E2] transition-colors py-1 flex items-center gap-1.5"
                                             >
+                                              <ChevronRight size={12} strokeWidth={3} className="shrink-0 opacity-50" />
                                               {svc.title || svc.service_name}
                                             </Link>
                                           ))}
@@ -398,12 +400,13 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                                         key={linkIdx}
                                         href={link.href}
                                         onClick={(e) => { if (link.isComingSoon) e.preventDefault(); }}
-                                        className={`font-body text-sm transition-colors ${
+                                        className={`font-body text-sm font-semibold transition-colors flex items-center gap-2 ${
                                           link.isComingSoon
                                             ? 'text-zinc-400 cursor-not-allowed'
                                             : 'text-[#2D2136]/80 hover:text-[#F000E2]'
                                         }`}
                                       >
+                                          <ChevronRight size={13} strokeWidth={3} className="shrink-0 opacity-40" />
                                         {link.label}
                                       </Link>
                                     );
@@ -628,10 +631,11 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                                   return (
                                     <Link
                                       key={gIdx}
-                                      href={`/blood-tests#${subSlug}`}
+                                      href={`/services/blood-tests#${subSlug}`}
                                       onClick={() => setActiveCategory(null)}
-                                      className="font-body text-[13px] font-semibold text-[#2D2136] hover:text-[#F000E2] transition-colors py-1"
+                                      className="font-body text-[13px] font-semibold text-[#2D2136] hover:text-[#F000E2] transition-colors py-1 flex items-center gap-1.5"
                                     >
+                                      <ChevronRight size={13} strokeWidth={3} className="shrink-0 opacity-50" />
                                       {group.subcategory}
                                     </Link>
                                   );
@@ -650,10 +654,11 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                                     {group.items.map((svc, sIdx) => (
                                       <Link
                                         key={sIdx}
-                                        href={`/serviceslisting/${catSlug}/${svc.slug}`}
+                                        href={`/services/${catSlug}/${svc.slug}`}
                                         onClick={() => setActiveCategory(null)}
-                                        className="font-body text-[13px] font-semibold text-[#2D2136] hover:text-[#F000E2] transition-colors py-1"
+                                        className="font-body text-[13px] font-semibold text-[#2D2136] hover:text-[#F000E2] transition-colors py-1 flex items-center gap-1.5"
                                       >
+                                        <ChevronRight size={13} strokeWidth={3} className="shrink-0 opacity-50" />
                                         {svc.title || svc.service_name}
                                       </Link>
                                     ))}
@@ -675,7 +680,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                                   </div>
                                 );
                               }
-                              return (
+                                  return (
                                 <Link
                                   key={linkIdx}
                                   href={link.href}
@@ -692,7 +697,8 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                                   {!link.isComingSoon && (
                                     <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#1E227D] opacity-0 group-hover:opacity-100 transition-opacity" />
                                   )}
-                                  <span className={`${!link.isComingSoon ? 'pl-1 group-hover:translate-x-1' : ''} transition-transform`}>
+                                  <span className={`flex items-center gap-2 ${!link.isComingSoon ? 'pl-1 group-hover:translate-x-1' : ''} transition-transform`}>
+                                    <ChevronRight size={14} strokeWidth={3} className="shrink-0 opacity-40" />
                                     {link.label}
                                   </span>
                                   {!link.isComingSoon && (
@@ -903,7 +909,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                         matchingServices.push({
                           title: cat.title,
                           category: 'Category',
-                          href: `/serviceslisting/${cat.slug}`,
+                          href: `/services/${cat.slug}`,
                           desc: cat.description,
                         });
                       }
@@ -916,8 +922,8 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                       ) {
                         // Blood tests link to the blood-tests page with anchor, not a detail page
                         const href = svc.categorySlug === 'blood-tests'
-                          ? `/blood-tests#${svc.slug}`
-                          : `/serviceslisting/${svc.categorySlug}/${svc.slug}`;
+                          ? `/services/blood-tests#${svc.slug}`
+                          : `/services/${svc.categorySlug}/${svc.slug}`;
                         matchingServices.push({
                           title: svc.title,
                           category: svc.categoryName,

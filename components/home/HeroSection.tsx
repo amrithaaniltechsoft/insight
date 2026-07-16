@@ -272,7 +272,7 @@ export default function HeroSection() {
               >
                 Book Appointment
               </Button>
-              <Link href="/serviceslisting/all" passHref>
+              <Link href="/services/all" passHref>
                 <Button
                   variant="secondary"
                   icon={<ArrowRight size={20} />}

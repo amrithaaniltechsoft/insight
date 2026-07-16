@@ -27,22 +27,36 @@ export default function ContactContent({ contact }: ContactContentProps) {
     phone: "",
     message: ""
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate API request
-    setIsSubmitted(true);
-    setTimeout(() => {
-      setIsSubmitted(false);
-      setFormData({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
-        message: ""
+    setIsSubmitting(true);
+    setSubmitError("");
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+    try {
+      const res = await fetch(`${API_URL}/enquiries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          message: formData.message,
+        }),
       });
-    }, 3000);
+      if (!res.ok) throw new Error('Failed to submit');
+      setFormData({ firstName: "", lastName: "", email: "", phone: "", message: "" });
+      setIsSubmitted(true);
+      setTimeout(() => setIsSubmitted(false), 5000);
+    } catch {
+      setSubmitError("Something went wrong. Please try again or email us directly.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -290,12 +304,16 @@ export default function ContactContent({ contact }: ContactContentProps) {
                         />
                       </div>
 
+                      {submitError && (
+                        <p className="text-sm text-red-500 text-center">{submitError}</p>
+                      )}
                       <button
                         type="submit"
-                        className="w-full rounded-xl bg-gradient-to-r from-[#1E227D] to-[#F000E2] py-4 font-display text-sm font-bold text-white shadow-md transition-all hover:opacity-95 hover:shadow-lg active:scale-[0.99] flex items-center justify-center gap-2"
+                        disabled={isSubmitting}
+                        className="w-full rounded-xl bg-gradient-to-r from-[#1E227D] to-[#F000E2] py-4 font-display text-sm font-bold text-white shadow-md transition-all hover:opacity-95 hover:shadow-lg active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60"
                       >
                         <Send size={15} />
-                        <span>Send Message</span>
+                        <span>{isSubmitting ? "Sending..." : "Send Message"}</span>
                       </button>
                     </motion.form>
                   ) : (

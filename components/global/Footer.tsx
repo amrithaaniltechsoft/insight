@@ -169,14 +169,14 @@ export default async function Footer({ categories = [] }: { categories?: Categor
             </h4>
             <nav className="flex flex-col gap-3 font-body text-[14.5px] text-white/70">
               {categories.length > 0 ? categories.map(cat => (
-                <Link key={cat.id} href={`/serviceslisting/${cat.slug}`} className="transition-colors hover:text-[#F000E2]">{cat.name.replace(/\n/g, '').trim()}</Link>
+                <Link key={cat.id} href={`/services/${cat.slug}`} className="transition-colors hover:text-[#F000E2]">{cat.name.replace(/\n/g, '').trim()}</Link>
               )) : (
                 <>
-                  <Link href="/serviceslisting/pregnancy-scans" className="transition-colors hover:text-[#F000E2]">Pregnancy Ultrasound Scans</Link>
-                  <Link href="/serviceslisting/diagnostics" className="transition-colors hover:text-[#F000E2]">Clinical Diagnostic Scans</Link>
-                  <Link href="/serviceslisting/physiotherapy" className="transition-colors hover:text-[#F000E2]">Expert Physiotherapy</Link>
-                  <Link href="/blood-tests" className="transition-colors hover:text-[#F000E2]">Private Blood Tests</Link>
-                  <Link href="/blood-tests" className="transition-colors hover:text-[#F000E2]">Well Woman & Man Packages</Link>
+                  <Link href="/services/pregnancy-scans" className="transition-colors hover:text-[#F000E2]">Pregnancy Ultrasound Scans</Link>
+                  <Link href="/services/diagnostics" className="transition-colors hover:text-[#F000E2]">Clinical Diagnostic Scans</Link>
+                  <Link href="/services/physiotherapy" className="transition-colors hover:text-[#F000E2]">Expert Physiotherapy</Link>
+                  <Link href="/services/blood-tests" className="transition-colors hover:text-[#F000E2]">Private Blood Tests</Link>
+                  <Link href="/services/blood-tests" className="transition-colors hover:text-[#F000E2]">Well Woman & Man Packages</Link>
                 </>
               )}
             </nav>
@@ -189,7 +189,7 @@ export default async function Footer({ categories = [] }: { categories?: Categor
             </h4>
             <nav className="flex flex-col gap-3 font-body text-[14.5px] text-white/70">
               <Link href="/about" className="transition-colors hover:text-[#F000E2]">About The Clinic</Link>
-              <Link href="/serviceslisting/all" className="transition-colors hover:text-[#F000E2]">Meet Our Specialists</Link>
+              <Link href="/services/all" className="transition-colors hover:text-[#F000E2]">Meet Our Specialists</Link>
               <Link href="/reviews" className="transition-colors hover:text-[#F000E2]">Patient Reviews</Link>
               <Link href="/blogs" className="transition-colors hover:text-[#F000E2]">Health & Wellness Blog</Link>
               <Link href="/faq" className="transition-colors hover:text-[#F000E2]">Frequently Asked Questions</Link>
@@ -282,7 +282,7 @@ export default async function Footer({ categories = [] }: { categories?: Categor
             {[...footerServices].filter(s => s.title.length <= 28).reverse().slice(0, 24).map((svc, i) => (
               <Link
                 key={i}
-                href={svc.categorySlug === 'blood-tests' ? `/blood-tests#${svc.slug}` : `/serviceslisting/${svc.categorySlug}/${svc.slug}`}
+                href={svc.categorySlug === 'blood-tests' ? `/services/blood-tests#${svc.slug}` : `/services/${svc.categorySlug}/${svc.slug}`}
                 className="transition-colors hover:text-white"
               >
                 {svc.title}

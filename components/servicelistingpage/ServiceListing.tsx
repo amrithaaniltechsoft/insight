@@ -76,9 +76,9 @@ export default function ServiceListing({ scans, slug }: ServiceListingProps) {
     const cat = activeCategory || scans.find(s => s.slug === resolvedService?.slug)?.categorySlug;
     if (!cat || !resolvedService) return;
     if (cat === "blood-tests") {
-      router.push(`/blood-tests#${resolvedService.slug}`);
+      router.push(`/services/blood-tests#${resolvedService.slug}`);
     } else {
-      router.push(`/serviceslisting/${cat}/${resolvedService.slug}`);
+      router.push(`/services/${cat}/${resolvedService.slug}`);
     }
   };
 
@@ -224,7 +224,7 @@ export default function ServiceListing({ scans, slug }: ServiceListingProps) {
                       Book Now
                     </Button>
                     <Link
-                      href={`/serviceslisting/${scan.categorySlug || slug}/${scan.slug}`}
+                      href={`/services/${scan.categorySlug || slug}/${scan.slug}`}
                       className="inline-flex items-center justify-center rounded-full border border-zinc-200 px-3 py-2.5 font-body text-xs font-semibold text-[#2D2136] hover:border-[#F000E2] hover:text-[#F000E2] transition-colors"
                     >
                       Details

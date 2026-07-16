@@ -111,7 +111,7 @@ export default function ServiceDetailClient({
           <nav className="mb-6 flex items-center gap-2 font-body text-xs font-medium text-white/70">
             <Link href="/" className="transition-colors hover:text-white">Home</Link>
             <ChevronRight size={10} />
-            <Link href={`/serviceslisting/${catSlug}`} className="transition-colors hover:text-white">
+            <Link href={`/services/${catSlug}`} className="transition-colors hover:text-white">
               {catName}
             </Link>
             <ChevronRight size={10} />

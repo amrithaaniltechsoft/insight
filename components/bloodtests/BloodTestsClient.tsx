@@ -144,7 +144,7 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
             <nav className="mb-6 flex items-center gap-2 font-body text-xs font-medium text-white/70">
               <Link href="/" className="transition-colors hover:text-white">Home</Link>
               <ChevronRight size={10} />
-              <Link href="/serviceslisting/all" className="transition-colors hover:text-white">Services</Link>
+              <Link href="/services/all" className="transition-colors hover:text-white">Services</Link>
               <ChevronRight size={10} />
               <span className="text-white">Blood Tests</span>
             </nav>
@@ -223,7 +223,7 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
                     className={`${isLast ? "w-full md:w-[calc(33.33%-11px)]" : "w-[calc(50%-8px)] md:w-[calc(33.33%-11px)]"} lg:w-[calc(25%-12px)]`}
                   >
                     <Link
-                      href={`/blood-tests#${anchorId}`}
+                      href={`/services/blood-tests#${anchorId}`}
                       className="group relative flex flex-col bg-white rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-lg transition-all border border-transparent hover:border-[#F000E2]/30 hover:bg-gradient-to-br hover:from-white hover:to-[#fdeffc] overflow-hidden h-full"
                     >
                       <GoldenDragonWave className="opacity-10 group-hover:opacity-20 transition-opacity duration-500" />

@@ -11,6 +11,7 @@ interface FAQItem {
   q: string;
   a: string;
   category: string;
+  sub_category?: string | null;
 }
 
 async function getFaqs(): Promise<FAQItem[]> {

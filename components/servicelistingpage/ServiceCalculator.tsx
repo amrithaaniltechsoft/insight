@@ -23,53 +23,53 @@ export default function ServiceCalculator({ slug, title, subtitle }: ServiceCalc
   const getPregnancyRecommendations = (week: number) => {
     const list = [];
     if (week >= 6 && week <= 15) {
-      list.push({ title: "Early Pregnancy Scan", href: `/serviceslisting/${slug}/early-pregnancy-scan` });
+      list.push({ title: "Early Pregnancy Scan", href: `/services/${slug}/early-pregnancy-scan` });
     }
     if (week >= 15 && week <= 24) {
-      list.push({ title: "Reassurance Scan", href: `/serviceslisting/${slug}/reassurance-scan` });
+      list.push({ title: "Reassurance Scan", href: `/services/${slug}/reassurance-scan` });
     }
     if (week >= 15 && week <= 24) {
-      list.push({ title: "Baby Gender Scan", href: `/serviceslisting/${slug}/baby-gender-scan` });
+      list.push({ title: "Baby Gender Scan", href: `/services/${slug}/baby-gender-scan` });
     }
     if (week >= 18 && week <= 22) {
-      list.push({ title: "Anomaly Scan", href: `/serviceslisting/${slug}/anomaly-scan` });
+      list.push({ title: "Anomaly Scan", href: `/services/${slug}/anomaly-scan` });
     }
     if (week >= 24 && week <= 32) {
-      list.push({ title: "4D Ultrasound Packages", href: `/serviceslisting/${slug}/4d-ultrasound-packages` });
+      list.push({ title: "4D Ultrasound Packages", href: `/services/${slug}/4d-ultrasound-packages` });
     }
     if (week >= 26 && week <= 40) {
-      list.push({ title: "Growth & Presentation Scan", href: `/serviceslisting/${slug}/growth-and-presentation-scan` });
+      list.push({ title: "Growth & Presentation Scan", href: `/services/${slug}/growth-and-presentation-scan` });
     }
     return list;
   };
 
   // Diagnostics recommendation logic
   const diagnosticAreas = [
-    { name: "Upper Abdomen", scan: "General Abdominal Scan", desc: "Liver, gallbladder, pancreas, kidneys & spleen checks.", href: `/serviceslisting/${slug}/general-abdominal-scan` },
-    { name: "Urinary Tract", scan: "Kidney, Ureter & Bladder Scan", desc: "Renal calculi, bladder capacity & flow checks.", href: `/serviceslisting/${slug}/kidney-ureter-bladder-scan` },
-    { name: "Swollen Leg / Pain", scan: "Deep Vein Thrombosis (DVT) Scan", desc: "Urgent Doppler evaluation for vascular blood clots.", href: `/serviceslisting/${slug}/dvt-scan` },
-    { name: "Female Pelvis", scan: "Well Woman Pelvic Scan", desc: "Uterus structure, lining & ovarian follicle counts.", href: `/serviceslisting/${slug}/well-woman-pelvic-scan` },
-    { name: "Prostate Check", scan: "Well Man Screening", desc: "Abdominal organ scanning + prostate volume checks.", href: `/serviceslisting/${slug}/well-man-screening` },
-    { name: "Aorta Check", scan: "Aortic Surveillance (AAA)", desc: "Abdominal aortic aneurysm screening measurements.", href: `/serviceslisting/${slug}/aortic-surveillance` }
+    { name: "Upper Abdomen", scan: "General Abdominal Scan", desc: "Liver, gallbladder, pancreas, kidneys & spleen checks.", href: `/services/${slug}/general-abdominal-scan` },
+    { name: "Urinary Tract", scan: "Kidney, Ureter & Bladder Scan", desc: "Renal calculi, bladder capacity & flow checks.", href: `/services/${slug}/kidney-ureter-bladder-scan` },
+    { name: "Swollen Leg / Pain", scan: "Deep Vein Thrombosis (DVT) Scan", desc: "Urgent Doppler evaluation for vascular blood clots.", href: `/services/${slug}/dvt-scan` },
+    { name: "Female Pelvis", scan: "Well Woman Pelvic Scan", desc: "Uterus structure, lining & ovarian follicle counts.", href: `/services/${slug}/well-woman-pelvic-scan` },
+    { name: "Prostate Check", scan: "Well Man Screening", desc: "Abdominal organ scanning + prostate volume checks.", href: `/services/${slug}/well-man-screening` },
+    { name: "Aorta Check", scan: "Aortic Surveillance (AAA)", desc: "Abdominal aortic aneurysm screening measurements.", href: `/services/${slug}/aortic-surveillance` }
   ];
 
   // Physiotherapy recommendation logic
   const physioIssues = [
-    { issue: "Spinal/Joint Mobilization", therapy: "Manual Physiotherapy", desc: "Hands-on joint manipulation, deep tissue release & recovery.", href: `/serviceslisting/${slug}/manual-physiotherapy` },
-    { issue: "Whiplash / Neck Pain", therapy: "Whiplash Injury Rehab", desc: "Specialist post-accident care for stiffness and headaches.", href: `/serviceslisting/${slug}/whiplash-rehab` },
-    { issue: "Sports Injury Rehab", therapy: "Exercise Rehabilitation", desc: "Active strength programs and gym-based joint recovery.", href: `/serviceslisting/${slug}/exercise-rehab` },
-    { issue: "Live Injection Precision", therapy: "Ultrasound Guided Injections", desc: "Steroid or Ostenil doses delivered under live clinical guidance.", href: `/serviceslisting/${slug}/guided-injections` },
-    { issue: "Severe Inflammation Relief", therapy: "Steroid Injection Therapy", desc: "MSK check with anti-inflammatory corticosteroid delivery.", href: `/serviceslisting/[slug]/steroid-therapy` }, // Fixed slug syntax
-    { issue: "Trigger Points / Dry Needling", therapy: "Clinical Acupuncture", desc: "Fine-needle stimulation to reduce muscle spasms and ease pain.", href: `/serviceslisting/${slug}/clinical-acupuncture` }
+    { issue: "Spinal/Joint Mobilization", therapy: "Manual Physiotherapy", desc: "Hands-on joint manipulation, deep tissue release & recovery.", href: `/services/${slug}/manual-physiotherapy` },
+    { issue: "Whiplash / Neck Pain", therapy: "Whiplash Injury Rehab", desc: "Specialist post-accident care for stiffness and headaches.", href: `/services/${slug}/whiplash-rehab` },
+    { issue: "Sports Injury Rehab", therapy: "Exercise Rehabilitation", desc: "Active strength programs and gym-based joint recovery.", href: `/services/${slug}/exercise-rehab` },
+    { issue: "Live Injection Precision", therapy: "Ultrasound Guided Injections", desc: "Steroid or Ostenil doses delivered under live clinical guidance.", href: `/services/${slug}/guided-injections` },
+    { issue: "Severe Inflammation Relief", therapy: "Steroid Injection Therapy", desc: "MSK check with anti-inflammatory corticosteroid delivery.", href: `/services/[slug]/steroid-therapy` }, // Fixed slug syntax
+    { issue: "Trigger Points / Dry Needling", therapy: "Clinical Acupuncture", desc: "Fine-needle stimulation to reduce muscle spasms and ease pain.", href: `/services/${slug}/clinical-acupuncture` }
   ];
 
   // Blood tests recommendation logic
   const bloodGoals = [
-    { goal: "General Wellness", test: "General Health Blood Test", desc: "Full check covering liver, kidney, blood count, iron, vitamins & lipids.", href: `/serviceslisting/${slug}/general-health-blood-test` },
-    { goal: "Early DNA Gender", test: "Early Gender Blood Test", desc: "Non-invasive early prenatal gender DNA screening from 6 weeks.", href: `/serviceslisting/${slug}/early-gender-blood-test` },
-    { goal: "Pregnancy Progress Check", test: "HCG Early Pregnancy Test", desc: "Quantitative Beta-hCG blood draw for conception timeline checks.", href: `/serviceslisting/${slug}/hcg-pregnancy-test` },
-    { goal: "Fertility Planning", test: "Fertility Blood Tests", desc: "Comprehensive profiling of ovarian reserves (AMH) and key hormones.", href: `/serviceslisting/${slug}/fertility-blood-tests` },
-    { goal: "Thyroid & Hormones", test: "Hormone Blood Tests", desc: "Focused endocrinology checking thyroid, testosterone, or cortisol.", href: `/serviceslisting/${slug}/hormone-blood-tests` }
+    { goal: "General Wellness", test: "General Health Blood Test", desc: "Full check covering liver, kidney, blood count, iron, vitamins & lipids.", href: `/services/${slug}/general-health-blood-test` },
+    { goal: "Early DNA Gender", test: "Early Gender Blood Test", desc: "Non-invasive early prenatal gender DNA screening from 6 weeks.", href: `/services/${slug}/early-gender-blood-test` },
+    { goal: "Pregnancy Progress Check", test: "HCG Early Pregnancy Test", desc: "Quantitative Beta-hCG blood draw for conception timeline checks.", href: `/services/${slug}/hcg-pregnancy-test` },
+    { goal: "Fertility Planning", test: "Fertility Blood Tests", desc: "Comprehensive profiling of ovarian reserves (AMH) and key hormones.", href: `/services/${slug}/fertility-blood-tests` },
+    { goal: "Thyroid & Hormones", test: "Hormone Blood Tests", desc: "Focused endocrinology checking thyroid, testosterone, or cortisol.", href: `/services/${slug}/hormone-blood-tests` }
   ];
 
   return (
