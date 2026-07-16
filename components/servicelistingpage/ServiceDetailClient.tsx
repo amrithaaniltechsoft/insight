@@ -157,19 +157,9 @@ export default function ServiceDetailClient({
               {/* Category badge + heading */}
               <div className="flex flex-col items-start gap-3">
                 <span className="inline-block rounded-full bg-[#1E227D]/10 px-4 py-1.5 font-body text-[11px] font-bold uppercase tracking-widest text-[#1E227D]">
-                  {catName} Package
+                  {title}
                 </span>
-                <h2 className="font-display text-3xl font-bold tracking-tight text-[#2D2136] md:text-4xl">
-                  Service Overview
-                </h2>
               </div>
-
-              {/* Overview - moved immediately after heading */}
-              {overview && (
-                <p className="font-body text-[15px] leading-relaxed text-[#2D2136]/75">
-                  {overview}
-                </p>
-              )}
 
               {/* Metrics badges */}
               <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
