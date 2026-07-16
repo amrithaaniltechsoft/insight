@@ -73,6 +73,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
+  const [mobileServiceOpen, setMobileServiceOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [navigationData, setNavigationData] = useState(staticNavigationData);
@@ -515,32 +516,39 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
           </div>
         </div>
 
-        {/* Categories Bar Layer (Directly below top navbar) */}
-        <div className="flex w-full items-center bg-[#FCFAFD] border-b border-zinc-100/80 overflow-x-auto scrollbar-none px-4 py-2.5 gap-2 scroll-smooth">
-          {navigationData.map((item, idx) => {
-            const isSelected = activeCategory === idx;
-            const catSlug = item.href.split('/').pop() || '';
-            return (
-              <button
-                key={idx}
-                onClick={() => {
-                  toggleCategory(idx);
-                  setMobileMenuOpen(false);
-                  fetchCategoryServices(catSlug);
-                }}
-                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full font-display text-xs font-bold transition-all whitespace-nowrap ${isSelected
-                    ? "bg-[#1E227D] text-white shadow-sm"
-                    : "bg-white text-[#2D2136] border border-zinc-200/80"
-                  }`}
-              >
-                <span>{item.label}</span>
-                <ChevronDown
-                  size={12}
-                  className={`opacity-60 transition-transform ${isSelected ? "rotate-180" : ""}`}
-                />
-              </button>
-            );
-          })}
+        {/* Services Dropdown (replaces horizontal scrollable categories) */}
+        <div className="relative w-full bg-[#FCFAFD] border-b border-zinc-100/80 px-4 py-2.5">
+          <button
+            onClick={() => setMobileServiceOpen(!mobileServiceOpen)}
+            onBlur={() => setTimeout(() => setMobileServiceOpen(false), 200)}
+            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[#1E227D]/40 bg-white px-4 py-3 font-body text-sm text-zinc-800 transition hover:bg-zinc-50 focus:border-[#1E227D] focus:outline-none focus:ring-2 focus:ring-[#1E227D]/20"
+          >
+            <span className="font-display text-xs font-bold uppercase tracking-wider text-zinc-500">Select Service</span>
+            <ChevronDown size={16} className={`text-zinc-500 transition-transform duration-200 ${mobileServiceOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {mobileServiceOpen && (
+            <div className="absolute left-4 right-4 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
+              {navigationData.map((item, idx) => {
+                const catSlug = item.href.split('/').pop() || '';
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setMobileServiceOpen(false);
+                      setMobileMenuOpen(false);
+                      fetchCategoryServices(catSlug);
+                      setActiveCategory(idx);
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-3 text-sm text-zinc-800 hover:bg-zinc-100 text-left border-b border-zinc-100 last:border-b-0 transition-colors"
+                  >
+                    {item.icon && <item.icon size={16} className="text-[#F000E2] shrink-0" />}
+                    <span className="font-body">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* ========================================================================= */}
@@ -608,7 +616,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                           <div className="flex flex-col gap-4">
                             {catSlug === 'blood-tests' ? (
                               // Blood Tests: show subcategory names as links
-                              <div className="grid grid-cols-3 gap-x-4 gap-y-2">
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                 {serviceGroups.map((group, gIdx) => {
                                   if (!group.subcategory) return null;
                                   const subSlug = group.subcategory
@@ -638,7 +646,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                                       {group.subcategory}
                                     </div>
                                   )}
-                                  <div className="grid grid-cols-3 gap-x-4 gap-y-2">
+                                  <div className="grid grid-cols-2 gap-x-4 gap-y-2">
                                     {group.items.map((svc, sIdx) => (
                                       <Link
                                         key={sIdx}
