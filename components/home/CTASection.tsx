@@ -1,8 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Button from "@/components/ui/Button";
-import { CalendarDays, ArrowRight } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { motion } from "framer-motion";
 import GoldenDragonWave from "./GoldenDragonWave";
 
@@ -84,10 +83,6 @@ export default function CTASection({ contact2 = '07777 138 166' }: { contact2?: 
         variants={sectionVariants}
       >
 
-        {/* 
-          THE CTA CARD
-          Flat design, no shadows, strict border radius to match the editorial aesthetic.
-        */}
         <motion.div variants={itemVariants} className="relative mx-auto flex w-full max-w-5xl flex-col md:flex-row">
 
           {/* LEFT CONTENT */}
@@ -101,26 +96,29 @@ export default function CTASection({ contact2 = '07777 138 166' }: { contact2?: 
             </p>
 
             <div className="mt-6 flex flex-col gap-4 sm:flex-row mb-12">
-              <Button
-                variant="primary"
-                icon={<CalendarDays size={18} />}
-                iconPosition="left"
-                className="!bg-white !text-[#FFFF] hover:!bg-white/90"
+              <a
+                href="#"
+                className="group cursor-pointer rounded-full font-body text-[15px] font-semibold transition-all active:scale-95 inline-flex justify-center bg-gradient-to-b from-[#5839E8] to-[#2D10AD] hover:brightness-105 border border-white text-[#FCFAFD] font-bold px-7 py-3.5 !bg-white !text-[#FFFF] hover:!bg-white/90"
               >
-                Book Appointment
-              </Button>
-              {/* <Button 
-                variant="secondary" 
-                icon={<ArrowRight size={18} />} 
-                iconPosition="right"
-                className="!border-[#2D2136]/20 hover:!border-[#2D2136]"
-              >
-                Learn about our services
-              </Button> */}
+                <div className="relative flex items-center justify-center overflow-hidden">
+                  <span
+                    className="absolute top-0 left-0 z-10 h-full w-1/2 -skew-x-[30deg] bg-gradient-to-r from-transparent via-white/80 to-transparent"
+                    style={{ transform: 'translateX(250%)' }}
+                  />
+                  <div className="flex items-center gap-2 duration-[1.125s] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:-translate-y-10">
+                    <span className="flex items-center"><CalendarDays size={18} /></span>
+                    <span>Book Appointment</span>
+                  </div>
+                  <div className="absolute top-10 left-0 flex w-full items-center justify-center gap-2 duration-[1.125s] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:top-0">
+                    <span className="flex items-center"><CalendarDays size={18} /></span>
+                    <span>Book Appointment</span>
+                  </div>
+                </div>
+              </a>
             </div>
           </div>
 
-          {/* RIGHT IMAGE Container */}
+          {/* RIGHT IMAGE */}
           <div className="relative z-10 min-h-[340px] sm:min-h-[380px] md:min-h-[auto] md:w-2/5 lg:min-h-[360px]">
             <Image
               src="/cta/cta.png"
@@ -131,10 +129,7 @@ export default function CTASection({ contact2 = '07777 138 166' }: { contact2?: 
             />
           </div>
 
-          {/* 
-            RIGHT DECORATION (The Abstract Squiggle)
-            Absolute positioned to the right edge, matching the reference image perfectly.
-          */}
+          {/* RIGHT DECORATION */}
           <div className="pointer-events-none absolute -right-[40px] top-1/2 hidden h-[1200px] w-[1200px] -translate-y-1/2 md:block">
             <GoldenDragonWave className="rotate-[100deg] scale-y-[-1] opacity-40" />
             <GoldenDragonWave className="rotate-[125deg] scale-y-[-1] opacity-50" />

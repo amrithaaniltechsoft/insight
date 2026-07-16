@@ -1,6 +1,5 @@
+import Script from "next/script";
 import PageBanner from "@/components/global/PageBanner";
-// import ReviewsGrid from "@/components/reviews/ReviewsGrid";
-import GoogleReviews from "@/components/home/GoogleReviews";
 import CTASection from "@/components/home/CTASection";
 
 export const metadata = {
@@ -16,13 +15,17 @@ export default function ReviewsPage() {
 
   return (
     <main className="w-full bg-[#FCFAFD] overflow-hidden">
+      <Script src="https://elfsightcdn.com/platform.js" strategy="lazyOnload" />
       <PageBanner
         title="Patient"
         highlightedTitle="Reviews"
         breadcrumbs={breadcrumbs}
       />
-      {/* <ReviewsGrid /> */}
-      <GoogleReviews />
+      <section className="py-16 lg:py-24">
+        <div className="container mx-auto px-6 lg:px-12">
+          <div className="elfsight-app-46a1acc6-6126-4429-93c8-7e1fb83e1925" data-elfsight-app-lazy />
+        </div>
+      </section>
       <CTASection />
     </main>
   );

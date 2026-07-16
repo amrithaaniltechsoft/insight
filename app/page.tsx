@@ -1,3 +1,4 @@
+import Script from "next/script";
 import HeroSection from "@/components/home/HeroSection";
 import TrustAnchor from "@/components/home/TrustAnchor";
 import SubServices from "@/components/home/SubServices";
@@ -5,7 +6,6 @@ import ClinicalDiagnostics from "@/components/home/ClinicalDiagnostics";
 import PremiumPackages, { type PackageData } from "@/components/home/PremiumPackages";
 import AboutSection from "@/components/home/AboutSection";
 import CTASection from "@/components/home/CTASection";
-import GoogleReviews from "@/components/home/GoogleReviews";
 
 interface CategoryItem {
   id: number;
@@ -225,7 +225,12 @@ export default async function Home() {
       <ClinicalDiagnostics diagnostics={pregnancyDiagnostics} />
       <PremiumPackages packages={bloodTestPkgs} eyebrow="Blood Tests" title="Blood Test Packages" description="Confidential wellness blood profiling with rapid results from our accredited lab." />
       <AboutSection cms={aboutCms} cmsFeatures={cmsFeatures} />
-      <GoogleReviews />
+      <Script src="https://elfsightcdn.com/platform.js" strategy="lazyOnload" />
+      <section className="py-16 lg:py-24 bg-[#FCFAFD]">
+        <div className="container mx-auto px-6 lg:px-12">
+          <div className="elfsight-app-46a1acc6-6126-4429-93c8-7e1fb83e1925" data-elfsight-app-lazy />
+        </div>
+      </section>
       <CTASection contact2={contactData.contact2} />
     </main>
   );
