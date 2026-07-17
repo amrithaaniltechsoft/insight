@@ -2,7 +2,11 @@ import Script from "next/script";
 import HeroSection from "@/components/home/HeroSection";
 import TrustAnchor from "@/components/home/TrustAnchor";
 import SubServices from "@/components/home/SubServices";
+
+
+
 import ClinicalDiagnostics from "@/components/home/ClinicalDiagnostics";
+import ScanCalculatorSection from "@/components/home/ScanCalculatorSection";
 import PremiumPackages, { type PackageData } from "@/components/home/PremiumPackages";
 import AboutSection from "@/components/home/AboutSection";
 import CTASection from "@/components/home/CTASection";
@@ -221,6 +225,7 @@ export default async function Home() {
     <main className="flex flex-1 flex-col w-full">
       <HeroSection />
       <TrustAnchor />
+      <ScanCalculatorSection />
       <SubServices services={services} categories={categories} searchServices={searchServices} />
       <ClinicalDiagnostics diagnostics={pregnancyDiagnostics} />
       <PremiumPackages packages={bloodTestPkgs} eyebrow="Blood Tests" title="Blood Test Packages" description="Confidential wellness blood profiling with rapid results from our accredited lab." />

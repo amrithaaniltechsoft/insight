@@ -24,7 +24,7 @@ export default function TrustAnchor() {
   };
 
   return (
-    <section 
+    <section
       className="relative w-full bg-[#E7BEF8] py-24 lg:py-32"
       style={{
         backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50' width='50' height='50'%3e%3cpath d='M25 20 V30 M20 25 H30' stroke='rgba(181,102,214,0.18)' stroke-width='1.5'/%3e%3c/svg%3e")`,
