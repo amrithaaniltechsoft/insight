@@ -18,30 +18,37 @@ interface FAQAccordionProps {
 }
 
 export default function FAQAccordion({ faqs, initialCategory }: FAQAccordionProps) {
-  const [activeCategory, setActiveCategory] = useState(initialCategory || "All");
-  const [activeSub, setActiveSub] = useState<string>("All");
+  const categories = Array.from(new Set(faqs.map(faq => faq.category)));
+  const firstCategory = initialCategory && categories.includes(initialCategory) ? initialCategory : categories[0] || "";
+  const firstSub = Array.from(new Set(
+    faqs.filter(f => f.category === firstCategory && f.sub_category)
+         .map(f => f.sub_category!)
+  ))[0] || "";
+
+  const [activeCategory, setActiveCategory] = useState(firstCategory);
+  const [activeSub, setActiveSub] = useState<string>(firstSub);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  const categories = ["All", ...Array.from(new Set(faqs.map(faq => faq.category)))];
-
   // Get subcategories for active category (excluding null/empty)
-  const subcategories = activeCategory === "All"
-    ? []
-    : ["All", ...Array.from(new Set(
-        faqs.filter(f => f.category === activeCategory && f.sub_category)
-             .map(f => f.sub_category!)
-      ))];
+  const subcategories = Array.from(new Set(
+    faqs.filter(f => f.category === activeCategory && f.sub_category)
+         .map(f => f.sub_category!)
+  ));
 
   // Filter by category then subcategory
   const filteredFaqs = faqs.filter(f => {
-    if (activeCategory !== "All" && f.category !== activeCategory) return false;
-    if (activeSub !== "All" && f.sub_category !== activeSub) return false;
+    if (f.category !== activeCategory) return false;
+    if (activeSub && f.sub_category !== activeSub) return false;
     return true;
   });
 
   const handleCategoryClick = (cat: string) => {
+    const firstSub = Array.from(new Set(
+      faqs.filter(f => f.category === cat && f.sub_category)
+           .map(f => f.sub_category!)
+    ))[0] || "";
     setActiveCategory(cat);
-    setActiveSub("All");
+    setActiveSub(firstSub);
     setOpenFaq(null);
   };
 
@@ -118,8 +125,8 @@ export default function FAQAccordion({ faqs, initialCategory }: FAQAccordionProp
           ))}
         </div>
 
-        {/* Subcategory Tabs (only when a specific category is selected) */}
-        {activeCategory !== "All" && subcategories.length > 1 && (
+        {/* Subcategory Tabs */}
+        {subcategories.length > 0 && (
           <div className="mb-10 flex flex-wrap justify-center gap-2">
             {subcategories.map((sub) => (
               <button
