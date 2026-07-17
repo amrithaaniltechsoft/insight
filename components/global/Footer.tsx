@@ -2,6 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 
+
+
 interface CategoryItem {
   id: number;
   name: string;
@@ -293,7 +295,7 @@ export default async function Footer({ categories = [] }: { categories?: Categor
 
         {/* Bottom Bar: Legal */}
         <div className="mt-8 flex flex-col items-center justify-between gap-4 font-body text-xs text-white/50 md:flex-row">
-          <p>&copy; {new Date().getFullYear()} Insight Health Services. All rights reserved.</p>
+          <span>&copy; {new Date().getFullYear()} Insight Health Services. <a href="https://www.techsoftweb.com/" target="_blank" rel="noopener noreferrer" className="underline decoration-transparent">Web Design Company Kochi</a>.</span>
           <div className="flex gap-6">
             <Link href="#" className="transition-colors hover:text-white">Privacy Policy</Link>
             <Link href="#" className="transition-colors hover:text-white">Terms of Service</Link>
