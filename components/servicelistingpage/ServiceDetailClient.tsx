@@ -319,9 +319,10 @@ export default function ServiceDetailClient({
                   variant="primary"
                   icon={<ArrowRight size={16} />}
                   iconPosition="right"
-                  className="w-full !bg-gradient-to-b !from-[#5839E8] !to-[#2D10AD] !text-white !border-transparent hover:brightness-110 transition-all py-4"
+                  className="w-full !bg-gradient-to-b !from-[#5839E8] !to-[#2D10AD] !text-white !border-transparent hover:brightness-110 transition-all py-4 whitespace-normal"
                 >
-                  Book Appointment Now
+                  <span className="inline min-[768px]:hidden min-[1280px]:inline">Book Appointment Now</span>
+                  <span className="hidden min-[768px]:inline min-[1280px]:hidden">Book Now</span>
                 </Button>
                 <div className="text-center font-body text-xs text-[#2D2136]/60">
                   Have questions? Call us on{" "}

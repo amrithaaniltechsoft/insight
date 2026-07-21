@@ -243,7 +243,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
       {/* ========================================================================= */}
       {/* 1. DESKTOP HEADER (Screen widths lg and up) */}
       {/* ========================================================================= */}
-      <div className="hidden min-[1278px]:block w-full">
+      <div className="hidden min-[1280px]:block w-full">
         <div className="container relative mx-auto flex flex-col px-4 lg:px-6">
           {/* OVERLAPPING LOGO */}
           <Link
@@ -472,7 +472,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
       {/* ========================================================================= */}
       {/* 2. MOBILE HEADER (Screen widths below lg) */}
       {/* ========================================================================= */}
-      <div className="min-[1278px]:hidden w-full relative z-[60]">
+      <div className="min-[1280px]:hidden w-full relative z-[60]">
 
         {/* Top Navbar Layer */}
         <div className="flex h-16 items-center justify-between px-6 border-b border-zinc-100 bg-white">
