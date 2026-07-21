@@ -156,7 +156,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
 
             // Blood Tests has its own dedicated route
             const catHref = catSlug === 'blood-tests'
-              ? '/blood-tests'
+              ? '/services/blood-tests'
               : `/services/${catSlug}`;
 
             const existingNav = staticNavigationData.find(nav =>
