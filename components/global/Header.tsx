@@ -186,7 +186,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                     title: cat.promo_title,
                     description: cat.promo_description ?? "",
                     linkText: cat.promo_link_text ?? "Learn more →",
-                    linkHref: cat.promo_link_href ?? catHref,
+                    linkHref: (cat.promo_link_href ?? catHref).replace('/serviceslisting/', '/services/'),
                     bgType: cat.promo_bg_type ?? "pearl",
                   }
                 : existingNav?.promoCard;
