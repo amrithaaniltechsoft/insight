@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, CalendarDays, ArrowRight, Clock, Coins, Check, ShieldCheck, Award, HeartPulse, ClipboardList } from "lucide-react";
+import { ChevronRight, CalendarDays, ArrowRight, Clock, Coins, Check, ShieldCheck, Award, HeartPulse, UserCheck, ClipboardList } from "lucide-react";
 import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
 import GoldenDragonWave from "@/components/home/GoldenDragonWave";
@@ -69,14 +69,14 @@ export default function ServiceDetailClient({
   }
 
   // Unified fields — API takes priority, with safe fallbacks
-  const title       = apiService?.title       ?? staticScan?.title ?? "Service";
-  const price       = apiService?.price       ?? staticScan?.price ?? "POA";
+  const title = apiService?.title ?? staticScan?.title ?? "Service";
+  const price = apiService?.price ?? staticScan?.price ?? "POA";
   const appointment = apiService?.appointment ?? staticScan?.duration ?? "—";
-  const overview    = apiService?.service_overview ?? staticScan?.description ?? "";
-  const videoLink   = apiService?.video_link  ?? null;
-  const image       = apiService?.image       ?? null;
-  const catName     = apiCategory?.name       ?? (staticCategory ? `${staticCategory.title} ${staticCategory.highlightedTitle}` : "");
-  const catSlug     = apiCategory?.slug       ?? slug;
+  const overview = apiService?.service_overview ?? staticScan?.description ?? "";
+  const videoLink = apiService?.video_link ?? null;
+  const image = apiService?.image ?? null;
+  const catName = apiCategory?.name ?? (staticCategory ? `${staticCategory.title} ${staticCategory.highlightedTitle}` : "");
+  const catSlug = apiCategory?.slug ?? slug;
 
   // description1 / description2 (API only; static doesn't have separate fields)
   const desc1 = stripHtml(apiService?.description1);
@@ -162,7 +162,7 @@ export default function ServiceDetailClient({
               </div>
 
               {/* Metrics badges */}
-              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:justify-between">
                 {price && (
                   <div className="flex items-center gap-4 rounded-2xl border border-zinc-300 bg-white p-5">
                     <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#E0A2F5]/10 text-[#F000E2]">
@@ -192,12 +192,13 @@ export default function ServiceDetailClient({
                     <ClipboardList size={22} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-body text-[11px] font-bold uppercase tracking-wider text-[#2D2136]/50">Preparations</span>
-                    <Link href={`/faq?category=${encodeURIComponent(catName)}`} className="font-display text-sm font-bold text-[#1E227D] hover:underline leading-tight text-left">
-                      View Prep Info
-                    </Link>
+                    <span className="font-body text-[11px] font-bold uppercase tracking-wider text-[#2D2136]/50">Preparation</span>
+                    <p className="font-display text-base font-bold text-[#2D2136]">
+                      Includes a full bladder. Drink a litre of fluid 1 hour before a scan.
+                    </p>
                   </div>
                 </div>
+
               </div>
 
               {/* What's Included - using description1 */}
@@ -216,7 +217,7 @@ export default function ServiceDetailClient({
                       // Remove HTML tags and decode entities
                       return match.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
                     }).filter(Boolean) : [];
-                    
+
                     if (listItems.length > 0) {
                       return (
                         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -235,7 +236,7 @@ export default function ServiceDetailClient({
                         </ul>
                       );
                     }
-                    
+
                     // Fallback: show as HTML if no list items found
                     return (
                       <div
@@ -337,6 +338,8 @@ export default function ServiceDetailClient({
                 { icon: <Award size={20} />, title: "HCPC Registered", sub: "Senior Clinical Sonographers" },
                 { icon: <HeartPulse size={20} />, title: "CSP Chartered", sub: "Expert Physiotherapists" },
                 { icon: <ShieldCheck size={20} />, title: "CQC Regulated Clinic", sub: "Ensuring High Clinical Standards" },
+                { icon: <UserCheck size={20} />, title: "NMC Registered", sub: "Nursing and Midwifery Council" },
+                { icon: <UserCheck size={20} />, title: "GMC Registered", sub: "General Medical Council" },
               ].map((badge, idx) => (
                 <div key={idx} className="flex items-center gap-4">
                   <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#E0A2F5]/10 text-[#F000E2]">

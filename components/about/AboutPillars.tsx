@@ -22,7 +22,7 @@ export default function AboutPillars({
 }) {
   const defaultPillars = [
     {
-      title: "Personalized Physiotherapy",
+      title: "Personalised Physiotherapy",
       description: "As an established private physiotherapy clinic in Walsall, we have a highly skilled team dedicated to your recovery.",
       icon: <Activity size={22} />,
     },

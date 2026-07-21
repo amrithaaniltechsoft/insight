@@ -111,6 +111,15 @@ function stripHtml(html: string | null): string {
   return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function splitFeatures(html: string | null): string[] {
+  if (!html) return [];
+  return html
+    .split(/<br\s*\/?>/i)
+    .flatMap(item => item.split(/<\/?(?:p|li|div)[^>]*>/i))
+    .map(item => item.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+}
+
 async function getBloodTestPackages(): Promise<PackageData[]> {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
   try {
@@ -118,14 +127,18 @@ async function getBloodTestPackages(): Promise<PackageData[]> {
     if (!res.ok) return [];
     const json = await res.json();
     const services: { id: number; title: string; service_name: string; price: string; description1: string; package_include: string; slug: string }[] = json.services || [];
-    const first3 = services.slice(0, 3);
-    return first3.map((s) => ({
+    const niptNames = ['NIPT STANDARD', 'NIPT ADVANCED', 'NIPT ABSOLUTE'];
+    const niptServices = niptNames.map(name =>
+      services.find(s => (s.title || s.service_name || '').toUpperCase().includes(name))
+    ).filter(Boolean) as typeof services;
+    const list = niptServices.length > 0 ? niptServices : services.slice(0, 3);
+    return list.map((s) => ({
       name: s.title || s.service_name,
       category: json.category?.name || 'Blood Tests',
       price: s.price || 'POA',
       description: stripHtml(s.description1) || `Comprehensive ${s.service_name} screening service.`,
       features: s.package_include
-        ? stripHtml(s.package_include).split(/[,;]/).map((f: string) => f.trim()).filter(Boolean)
+        ? splitFeatures(s.package_include)
         : [s.service_name || s.title],
     }));
   } catch {

@@ -1,4 +1,4 @@
-import { Baby, Stethoscope, Activity, Droplet, ClipboardList, LucideIcon } from "lucide-react";
+import { Baby, Stethoscope, Activity, Droplet, ClipboardList, Syringe, LucideIcon } from "lucide-react";
 
 export interface NavLink {
   label: string;
@@ -104,20 +104,37 @@ export const navigationData: MegaMenuItem[] = [
     },
   },
   {
-    label: "Other Diagnostics",
-    icon: ClipboardList,
-    href: "/services/other-diagnostics",
+    label: "Acupuncture",
+    icon: Syringe,
+    href: "/services/acupuncture",
     links: [
-      { label: "Cervical Screening - Coming Soon!", href: "#", isComingSoon: true },
-      { label: "Health MOT - Coming Soon!", href: "#", isComingSoon: true },
+      { label: "Clinical Acupuncture", href: "/services/acupuncture/clinical-acupuncture" },
+      { label: "Cosmetic Acupuncture", href: "/services/acupuncture/cosmetic-acupuncture" },
     ],
     promoCard: {
-      title: "Preventive Care",
-      description: "Advanced screening services designed to detect early indicators and help support your long-term health and wellness.",
-      linkText: "Contact Us to Learn More \u2192",
-      linkHref: "/contact",
-      bgType: "zinc",
+      title: "Holistic Healing",
+      description: "Experience needle‑based therapy to alleviate pain, improve wellbeing, and support recovery.",
+      linkText: "Explore Acupuncture \u2192",
+      linkHref: "/services/acupuncture",
+      bgType: "pearl",
       colSpan: 2,
+    },
+  },
+  {
+    label: "Joint Injections",
+    icon: Syringe,
+    href: "/services/joint-injections",
+    links: [
+      { label: "Ultrasound Guided Joint Injection", href: "/services/joint-injections/ultrasound-guided" },
+      { label: "Steroid Injection Therapy", href: "/services/joint-injections/steroid-therapy" },
+    ],
+    promoCard: {
+      title: "Targeted Relief",
+      description: "Precise ultrasound‑guided injections to reduce pain and inflammation in joints.",
+      linkText: "Learn More →",
+      linkHref: "/services/joint-injections",
+      bgType: "pearl",
+      colSpan: 1,
     },
   },
 ];

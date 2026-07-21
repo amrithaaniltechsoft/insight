@@ -150,15 +150,12 @@ export default function TrustAnchor() {
             RIGHT SIDE: The Image Container
             Ready for a transparent PNG. The background inherits the card's color.
           */}
-          <div className="relative min-h-[240px] w-full bg-white/5 md:w-2/5 flex items-end justify-center">
-            <Image
-              src="/asset-images/physiotherapist-helping-nobg.png"
-              alt="Medical Professional"
-              width={1000}
-              height={1000}
-              className="h-auto max-h-[200px] md:max-h-[440px] w-auto object-contain object-bottom"
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
+          <div className="relative min-h-[200px] md:min-h-[440px] w-full bg-white/5 md:w-2/5 flex items-center justify-center">
+            <img
+                src="/asset-images/physiotherapist-helping-nobg.png"
+                alt="Medical Professional"
+                className="h-full w-full object-cover"
+                />
           </div>
 
         </motion.div>

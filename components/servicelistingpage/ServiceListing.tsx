@@ -65,6 +65,10 @@ export default function ServiceListing({ scans, slug }: ServiceListingProps) {
     setSelectedCategory(catSlug);
     setSelectedService(null);
     setSearchTerm("");
+    // Redirect to the selected category page when on /services/all
+    if (catSlug && slug === "all") {
+      router.push(`/services/${catSlug}`);
+    }
   };
 
   const handleServiceSelect = (service: { slug: string; title: string }) => {
@@ -81,6 +85,15 @@ export default function ServiceListing({ scans, slug }: ServiceListingProps) {
       router.push(`/services/${cat}/${resolvedService.slug}`);
     }
   };
+
+  // Determine which scans to show in the grid:
+  // - On /services/all with a category selected: show only that category's scans
+  // - On /services/all with no category: show all scans
+  // - On a specific category page: show all passed scans (already filtered by server)
+  const displayedScans =
+    slug === "all" && activeCategory
+      ? scans.filter((scan) => (scan.categorySlug || slug) === activeCategory)
+      : scans;
 
   return (
     <section
@@ -154,7 +167,7 @@ export default function ServiceListing({ scans, slug }: ServiceListingProps) {
 
         {/* Sub-Services Grid */}
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {scans.map((scan, scanIdx) => {
+          {displayedScans.map((scan, scanIdx) => {
             const IconComp = scan.icon;
             return (
               <motion.div

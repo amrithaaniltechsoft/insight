@@ -44,7 +44,7 @@ export const servicesData: Record<string, ServicePageData> = {
   "pregnancy-scans": {
     title: "Pregnancy Ultrasound",
     highlightedTitle: "Scans",
-    description: "Premium private pregnancy scans in Walsall. From early reassurance to stunning 4D HD-Live bonding, experience specialized care in our warm, state-of-the-art clinic.",
+    description: "Premium private pregnancy scans in Walsall. From early reassurance to stunning 4D HD-Live bonding, experience specialised care in our warm, state-of-the-art clinic.",
     seoTitle: "Private Pregnancy Ultrasound Scans | Insight Health Services Walsall",
     seoDescription: "Premium private pregnancy scans in Walsall from 6 weeks. Early reassurance, dating scans, baby gender scans, structural anomaly scans, and 4D HD-Live bonding packages. Book without referral.",
     bannerGradient: "from-[#1E227D] to-[#F000E2]",

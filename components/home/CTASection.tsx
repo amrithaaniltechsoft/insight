@@ -88,7 +88,7 @@ export default function CTASection({ contact2 = '07777 138 166' }: { contact2?: 
           {/* LEFT CONTENT */}
           <div className="relative z-10 flex w-full max-w-2xl flex-col items-start justify-center text-left p-10 md:w-3/5 md:p-16 lg:p-20">
             <h2 className="font-display text-3xl font-medium tracking-tight text-white md:text-4xl lg:text-[2.75rem] lg:leading-[1.1]">
-              Get the premium healthcare you want and need with Insight Health.
+              Get the premium healthcare you deserve with Insight Health.
             </h2>
 
             <p className="mt-6 font-body text-[15px] text-white/80">

@@ -33,7 +33,7 @@ export default function AboutSection({ cms, cmsFeatures }: AboutSectionProps) {
       })
     : [
     {
-      title: "Personalized Physiotherapy",
+      title: "Personalised Physiotherapy",
       description: "As an established private physiotherapy clinic in Walsall, we have a highly skilled team dedicated to your recovery.",
       icon: <Activity size={24} className="text-[#E0A2F5]" />,
     },
@@ -142,13 +142,13 @@ export default function AboutSection({ cms, cmsFeatures }: AboutSectionProps) {
 
           <div className="mt-8 flex flex-col gap-5 font-body text-[16px] leading-relaxed text-white/80">
             {cms?.description ? (
-              cms.description.replace(/<[^>]*>/g, '').split('\n').filter(p => p.trim()).map((p, i) => (
+              cms.description.replace(/<[^>]*>/g, '').replace(/\.(?=\w)/g, '. ').split('\n').filter(p => p.trim()).map((p, i) => (
                 <span key={i}>{p}</span>
               ))
             ) : (
               <>
                 <span>
-                  Insight Health Services is a CQC Regulated independent clinic in Walsall, providing a wide range of healthcare services including physiotherapy, diagnostic ultrasound and blood tests.
+                  Insight Health Services is a CQC Regulated independent clinic in Walsall, providing a wide range of healthcare services including physiotherapy, diagnostic ultrasound and blood tests. 
                 </span>
                 <span>
                   Our Physiotherapists will assess and evaluate your need for an ultrasound study through a clinical physical examination to enhance a diagnosis. Once a diagnosis has been made in the first session, we will then move on to create an active treatment plan that suits your needs.

@@ -215,9 +215,9 @@ export default async function Footer({ categories = [] }: { categories?: Categor
                   <a href={`tel:${contact.contact2.replace(/\s/g, '')}`} className="transition-colors hover:text-[#F000E2]">{contact.contact2} <span className="text-xs text-white/40">(Mobile/WhatsApp)</span></a>
                 </div>
               </li>
-              <li className="flex items-center gap-3">
+              <li className="flex items-center gap-3 min-w-0">
                 <Mail size={18} className="shrink-0 text-[#E0A2F5]" />
-                <a href={`mailto:${contact.email}`} className="transition-colors hover:text-[#F000E2]">{contact.email}</a>
+                <a href={`mailto:${contact.email}`} className="transition-colors hover:text-[#F000E2] break-all min-w-0 lg:max-[1100px]:break-all">{contact.email}</a>
               </li>
               <li className="flex items-start gap-3 pt-2">
                 <Clock size={18} className="mt-0.5 shrink-0 text-[#F000E2]" />

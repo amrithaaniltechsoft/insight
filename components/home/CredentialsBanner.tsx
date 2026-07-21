@@ -55,13 +55,11 @@ export default function CredentialsBanner() {
             </div>
           </div>
         </div>
-        <div className="relative min-h-[240px] w-full bg-white/5 md:w-2/5 flex items-end justify-center">
-          <Image
+        <div className="relative h-[240px] w-full bg-white/5 md:w-2/5 flex items-start justify-center overflow-hidden">
+          <img
             src="/asset-images/physiotherapist-helping-nobg.png"
             alt="Medical Professional"
-            width={1000}
-            height={1000}
-            className="h-auto max-h-[200px] md:max-h-[440px] w-auto object-contain object-bottom"
+            className="h-full w-full object-cover"
           />
         </div>
       </div>

@@ -223,7 +223,7 @@ export default function HeroSection() {
   const duplicatedServices = [...services, ...services];
 
   return (
-    <section className="relative flex h-auto lg:h-[calc(100vh-104px)] lg:min-h-[700px] w-full items-end justify-center overflow-hidden bg-gradient-to-r from-[#1E227D] to-[#F000E2] px-4 pt-16 sm:px-6 sm:pt-20 md:px-8 md:pt-8">
+    <section className="relative flex h-auto lg:h-[calc(100vh-104px)] lg:min-h-[700px] w-full items-end justify-center overflow-hidden bg-gradient-to-r from-[#1E227D] to-[#F000E2] px-4 pt-8 sm:px-6 sm:pt-12 md:px-8 md:pt-4">
 
       {/* Solid Curved Background Shapes (No Gradients/Blurs) */}
       <div className="absolute -left-32 top-0 z-0 h-[40rem] w-[40rem] rounded-full bg-[#E0A2F5]/10" />
@@ -256,11 +256,11 @@ export default function HeroSection() {
           >
             {/* Reduced size and boldness, highly contrasted dark color */}
             <motion.h1 variants={itemVariants} className="font-display text-3xl font-bold leading-[1.15] tracking-tight text-white md:text-4xl lg:text-5xl xl:text-6xl">
-              Your Wellness, <br />
-              <span className="text-white/80">Insightfully</span> Guided.
+              Your Health. Your Journey. <br />
+              <span className="text-white/80">Expertly</span> Guided.
             </motion.h1>
             <motion.p variants={itemVariants} className="mt-4 max-w-2xl font-body text-base leading-relaxed text-white/80 md:text-lg">
-              Skip the waiting lists. Experience premium private pregnancy scans, clinical diagnostics, and physiotherapy in a structured, professional environment.
+              From reassuring pregnancy scans and diagnostic ultrasound to blood tests and physiotherapy, experience trusted private healthcare delivered with compassion, clarity and confidence.
             </motion.p>
 
             <motion.div variants={itemVariants} className="mt-6 flex flex-col gap-4 sm:flex-row">
@@ -304,14 +304,20 @@ export default function HeroSection() {
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                     </svg>
                     <span className="font-display text-2xl font-bold text-white">5.0</span>
-                    <Star size={18} className="text-[#FBBC05] fill-[#FBBC05]" />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Star size={16} className="text-[#FBBC05] fill-[#FBBC05]" />
+                    <Star size={16} className="text-[#FBBC05] fill-[#FBBC05]" />
+                    <Star size={16} className="text-[#FBBC05] fill-[#FBBC05]" />
+                    <Star size={16} className="text-[#FBBC05] fill-[#FBBC05]" />
+                    <Star size={16} className="text-[#FBBC05] fill-[#FBBC05]" />
                   </div>
                   <span className="font-body text-[11px] font-bold uppercase tracking-wider text-white/80">Google Reviews</span>
                 </div>
                 <div className="h-10 w-px bg-white/20" />
-                <div className="flex flex-col items-center gap-1.5 brightness-0 invert">
-                  <Image src="/reg-logos/cqc2.png" alt="CQC Registered" width={40} height={40} className="h-8 w-auto object-contain" />
-                  <span className="font-body text-[11px] font-bold uppercase tracking-wider text-white/80">Registered</span>
+                <div className="flex flex-col items-center gap-1.5">
+                  <Image src="/reg-logos/Annotation 2026-07-20 115730.png" alt="CQC Registered" width={56} height={56} className="h-14 w-auto object-contain" />
+
                 </div>
               </motion.div>
               <motion.div variants={itemVariants as import("framer-motion").Variants}>
@@ -322,7 +328,7 @@ export default function HeroSection() {
         </div>
 
         {/* RIGHT SIDE: Image and Comet Animation */}
-        <div className="relative flex items-end justify-center lg:col-span-5 h-[350px] sm:h-[450px] lg:h-full w-full max-w-lg mx-auto">
+        <div className="relative flex items-start justify-center lg:col-span-5 h-full w-full max-w-lg mx-auto">
           <div className="relative h-full w-full">
             {/* Animated Angel Wings (Placed exactly behind the woman, appearing with the woman) */}
             <motion.div
@@ -346,7 +352,7 @@ export default function HeroSection() {
                 alt="Pregnant woman holding ultrasound scans"
                 fill
                 priority
-                className="object-contain object-bottom drop-shadow-2xl"
+                className="object-cover object-top drop-shadow-2xl"
                 sizes="(max-width: 1024px) 100vw, 33vw"
               />
             </motion.div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, Clock } from "lucide-react";
 
 interface ApiService {
@@ -9,6 +10,42 @@ interface ApiService {
   slug: string;
   title: string;
   service_name: string;
+  weeks?: string;
+  appointment?: string;
+}
+
+/** Parse a weeks string like "6 - 15 Weeks" or "15 Weeks - Term" into [min, max] */
+function parseWeekRange(weeksStr: string): [number, number] | null {
+  if (!weeksStr) return null;
+  const str = weeksStr.toLowerCase().replace("term", "40").replace("weeks", "").replace("week", "");
+  const match = str.match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (match) return [parseInt(match[1], 10), parseInt(match[2], 10)];
+  const single = str.match(/(\d+)/);
+  if (single) { const n = parseInt(single[1], 10); return [n, n]; }
+  return null;
+}
+
+/** Hardcoded fallback week ranges keyed by service slug */
+const STATIC_WEEK_RANGES: Record<string, [number, number]> = {
+  "early-pregnancy-scan":                   [6, 15],
+  "reassurance-scan":                       [15, 40],
+  "baby-gender-scan":                       [15, 24],
+  "anomaly-scan":                           [18, 22],
+  "silver-4d-ultrasound-package-believe":   [20, 34],
+  "gold-4d-ultrasound-package-insight":     [20, 34],
+  "bronze-4d-ultrasound-package-hope":      [20, 34],
+  "growth-and-presentation-scan":           [26, 40],
+};
+
+function serviceMatchesWeek(svc: ApiService, week: number): boolean {
+  if (svc.weeks) {
+    const range = parseWeekRange(svc.weeks);
+    if (range) return week >= range[0] && week <= range[1];
+  }
+  const slug = svc.slug || "";
+  const staticRange = STATIC_WEEK_RANGES[slug];
+  if (staticRange) return week >= staticRange[0] && week <= staticRange[1];
+  return false;
 }
 
 export default function ScanCalculatorSection() {
@@ -27,6 +64,8 @@ export default function ScanCalculatorSection() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const recommended = services.filter((svc) => serviceMatchesWeek(svc, weeks));
 
   return (
     <section id="scan-calculator" className="relative py-20 bg-gradient-to-r from-[#1E227D] to-[#F000E2]">
@@ -74,15 +113,23 @@ export default function ScanCalculatorSection() {
             <p className="mt-4 font-body text-[15px] leading-relaxed text-white/80">Every scan in your pregnancy has an optimal clinical timing window. Adjust the week indicator to discover recommended packages for your current stage.</p>
             <div className="mt-6 flex items-center gap-3 text-xs text-white/60">
               <Clock size={16} className="text-[#E0A2F5]" />
-              Select a parameter to view matching recommendations immediately.
+              Drag the slider to view scans available at each gestation week.
             </div>
           </div>
 
           <div className="lg:col-span-6 max-w-lg lg:ml-auto w-full rounded-[2rem] bg-white border border-zinc-100 p-6 shadow-xl shadow-[#2D2136]/5 md:p-8 relative z-10">
+            {/* Week Slider */}
             <div className="flex flex-col items-center gap-6 border-b border-zinc-100 pb-8">
               <span className="font-display text-sm font-semibold text-[#2D2136]/60">My Pregnancy Gestation:</span>
               <div className="flex items-baseline gap-2">
-                <span className="font-display text-5xl font-black text-[#F000E2]">{weeks}</span>
+                <motion.span
+                  key={weeks}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="font-display text-5xl font-black text-[#F000E2]"
+                >
+                  {weeks}
+                </motion.span>
                 <span className="font-display text-lg font-bold text-[#2D2136]/80">Weeks</span>
               </div>
               <div className="w-full flex items-center gap-4">
@@ -101,31 +148,50 @@ export default function ScanCalculatorSection() {
                 <span className="font-body text-xs font-bold text-[#2D2136]/50">40w</span>
               </div>
             </div>
+
+            {/* Recommended Services */}
             <div className="pt-6">
               <h4 className="font-display text-sm font-bold text-[#2D2136] mb-4">Recommended Scan Packages:</h4>
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 min-h-[80px]">
                 {loading ? (
                   <div className="text-center text-sm text-[#2D2136]/50 py-4">Loading services...</div>
-                ) : services.length === 0 ? (
-                  <div className="text-center text-sm text-[#2D2136]/50 py-4">No services available for this stage.</div>
+                ) : recommended.length === 0 ? (
+                  <div className="text-center text-sm text-[#2D2136]/50 py-4">
+                    No specific scans for week {weeks}.{" "}
+                    <Link href="/services/pregnancy-scans" className="text-[#F000E2] font-semibold hover:underline">
+                      View all pregnancy scans →
+                    </Link>
+                  </div>
                 ) : (
-                  services.slice(0, 1).map((svc) => {
-                    const slug = svc.slug || svc.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-                    return (
-                      <div
-                        key={svc.id}
-                        className="flex items-center justify-between rounded-xl bg-[#FCFAFD] border border-zinc-200/50 p-4 hover:border-[#E0A2F5]/40"
-                      >
-                        <h5 className="font-display text-[14.5px] font-bold text-[#2D2136]">{svc.title || svc.service_name}</h5>
-                        <Link
-                          href={`/services/pregnancy-scans/${slug}`}
-                          className="flex items-center gap-1 font-body text-xs font-bold text-[#F000E2] hover:text-[#E0A2F5]"
+                  <AnimatePresence mode="popLayout">
+                    {recommended.map((svc) => {
+                      const slug = svc.slug || svc.title?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+                      return (
+                        <motion.div
+                          key={svc.id || slug}
+                          layout
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.25 }}
+                          className="flex items-center justify-between rounded-xl bg-[#FCFAFD] border border-zinc-200/50 p-4 hover:border-[#E0A2F5]/60 hover:bg-[#FAF5FF] transition-colors"
                         >
-                          View Scan <ChevronRight size={14} />
-                        </Link>
-                      </div>
-                    );
-                  })
+                          <div className="flex flex-col">
+                            <h5 className="font-display text-[14px] font-bold text-[#2D2136]">{svc.title || svc.service_name}</h5>
+                            {svc.weeks && (
+                              <span className="font-body text-[11px] text-[#F000E2]/70 mt-0.5">{svc.weeks}</span>
+                            )}
+                          </div>
+                          <Link
+                            href={`/services/pregnancy-scans/${slug}`}
+                            className="flex items-center gap-1 font-body text-xs font-bold text-[#F000E2] hover:text-[#E0A2F5] whitespace-nowrap ml-4"
+                          >
+                            View Scan <ChevronRight size={14} />
+                          </Link>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
                 )}
               </div>
             </div>
@@ -135,3 +201,5 @@ export default function ScanCalculatorSection() {
     </section>
   );
 }
+
+

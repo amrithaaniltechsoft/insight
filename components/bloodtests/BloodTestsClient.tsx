@@ -51,7 +51,7 @@ function stripHtml(html: string | null): string[] {
     .split(/\n/)
     .map((s) => s.trim())
     .filter(Boolean)
-    .slice(0, 4);
+    .filter(Boolean);
 }
 
 interface BloodTestsClientProps {
