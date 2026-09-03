@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Clock, ChevronRight, Check } from "lucide-react";
@@ -10,37 +10,106 @@ interface ServiceCalculatorProps {
   slug: string;
   title: string;
   subtitle: string;
+  services?: {
+    title: string;
+    slug: string;
+    service_overview: string | null;
+    appointment?: string | null;
+  }[];
 }
 
-export default function ServiceCalculator({ slug, title, subtitle }: ServiceCalculatorProps) {
+interface PregnancyRecommendation {
+  title: string;
+  href: string;
+}
+
+function normalizeServiceTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
+}
+
+function pregnancyWeekRange(title: string): [number, number] | null {
+  const normalizedTitle = normalizeServiceTitle(title);
+  const ranges: Record<string, [number, number]> = {
+    earlypregnancyscan: [6, 15],
+    reassurancescan: [15, 24],
+    babygenderscan: [15, 24],
+    anomalyscan: [18, 22],
+    gold4dultrasoundpackageinsight: [24, 40],
+    bronze4dultrasoundpackagehope: [24, 40],
+    growthandpresentationscan: [26, 40],
+  };
+  return ranges[normalizedTitle] ?? null;
+}
+
+export default function ServiceCalculator({ slug, title, subtitle, services = [] }: ServiceCalculatorProps) {
   // Gestation week state (Pregnancy)
   const [gestationWeek, setGestationWeek] = useState<number>(12);
 
   // Selector states for other slugs
   const [selectedBloodGoal, setSelectedBloodGoal] = useState<string>("General Wellness");
 
-  // Pregnancy recommendation logic
-  const getPregnancyRecommendations = (week: number) => {
-    const list = [];
-    if (week >= 6 && week <= 15) {
-      list.push({ title: "Early Pregnancy Scan", href: `/services/${slug}/early-pregnancy-scan` });
+  // DB-driven pregnancy recommendations
+  const [dbPregnancy, setDbPregnancy] = useState<{ title: string; slug: string; min_value: number | null; max_value: number | null }[]>([]);
+
+  // Pull the recommendation table for this category from the database
+  useEffect(() => {
+    if (slug !== "pregnancy-scans") return;
+    let cancelled = false;
+    fetch(`/api/assessment?category=${slug}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data || !Array.isArray(data.recommendations)) return;
+        setDbPregnancy(
+          data.recommendations
+            .filter((row: { widget_type?: string }) => !row.widget_type || row.widget_type === "range")
+            .map((row: { title: string; slug: string; min_value: number | null; max_value: number | null }) => ({
+              title: row.title,
+              slug: row.slug,
+              min_value: row.min_value,
+              max_value: row.max_value,
+            }))
+        );
+      })
+      .catch(() => {
+        // keep hardcoded fallback below
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  // Use assessment rows first, then derive recommendations from the services table.
+  const getPregnancyRecommendations = (week: number): PregnancyRecommendation[] => {
+    if (dbPregnancy.length > 0) {
+      return dbPregnancy
+        .filter((row) => (row.min_value ?? 0) <= week && (row.max_value ?? Infinity) >= week)
+        .map((row) => ({
+          title: row.title,
+          href: `/services/${slug}/${services.find(
+            (service) => normalizeServiceTitle(service.title) === normalizeServiceTitle(row.title)
+          )?.slug ?? row.slug}`,
+        }));
     }
-    if (week >= 15 && week <= 24) {
-      list.push({ title: "Reassurance Scan", href: `/services/${slug}/reassurance-scan` });
-    }
-    if (week >= 15 && week <= 24) {
-      list.push({ title: "Baby Gender Scan", href: `/services/${slug}/baby-gender-scan` });
-    }
-    if (week >= 18 && week <= 22) {
-      list.push({ title: "Anomaly Scan", href: `/services/${slug}/anomaly-scan` });
-    }
-    if (week >= 24 && week <= 32) {
-      list.push({ title: "4D Ultrasound Packages", href: `/services/${slug}/4d-ultrasound-packages` });
-    }
-    if (week >= 26 && week <= 40) {
-      list.push({ title: "Growth & Presentation Scan", href: `/services/${slug}/growth-and-presentation-scan` });
-    }
-    return list;
+
+    return services
+      .map((service) => {
+        const configuredRange = pregnancyWeekRange(service.title);
+        const weeks = (service.appointment ?? "").match(/\d+/g)?.map(Number) ?? [];
+        return {
+          service,
+          minWeek: configuredRange?.[0] ?? weeks[0] ?? 0,
+          maxWeek: configuredRange?.[1] ?? weeks[1] ?? weeks[0] ?? Infinity,
+        };
+      })
+      .filter(({ minWeek, maxWeek }) => minWeek <= week && maxWeek >= week)
+      .map(({ service }) => ({
+        title: service.title,
+        href: `/services/${slug}/${service.slug}`,
+      }));
   };
 
   // Diagnostics recommendation logic
@@ -71,6 +140,8 @@ export default function ServiceCalculator({ slug, title, subtitle }: ServiceCalc
     { goal: "Fertility Planning", test: "Fertility Blood Tests", desc: "Comprehensive profiling of ovarian reserves (AMH) and key hormones.", href: `/services/${slug}/fertility-blood-tests` },
     { goal: "Thyroid & Hormones", test: "Hormone Blood Tests", desc: "Focused endocrinology checking thyroid, testosterone, or cortisol.", href: `/services/${slug}/hormone-blood-tests` }
   ];
+
+  if (slug === "cervical-screening" || slug === "servical-screening" || slug === "health-Mot" || slug === "all") return null;
 
   return (
     <section id="scan-calculator" className="relative py-20 bg-gradient-to-r from-[#1E227D] to-[#F000E2]">
@@ -244,6 +315,64 @@ export default function ServiceCalculator({ slug, title, subtitle }: ServiceCalc
                     </div>
                     <Link
                       href={physioIssues[0].href}
+                      className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#1E227D] px-5 py-2.5 font-body text-xs font-bold text-white hover:bg-[#1E227D]/90 transition-colors"
+                    >
+                      View Details <ChevronRight size={14} className="ml-1" />
+                    </Link>
+                  </motion.div>
+                </div>
+              </div>
+            )}
+
+            {/* WIDGET FOR ACUPUNCTURE */}
+            {slug.toLowerCase().startsWith("acupunctur") && services.length > 0 && (
+              <div className="flex flex-col gap-6">
+                <div className="pt-2">
+                  <h4 className="font-display text-sm font-bold text-[#2D2136] mb-4">Recommended Care Pathway:</h4>
+                  <div className="flex flex-col gap-4">
+                    {services.map((svc, idx) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: idx * 0.1 }}
+                        className="rounded-2xl bg-[#FCFAFD] border border-zinc-200 p-6 flex flex-col justify-between md:flex-row md:items-center gap-4"
+                      >
+                        <div>
+                          <span className="font-display text-[10px] font-black uppercase text-[#F000E2] tracking-wider">Acupuncture</span>
+                          <h5 className="font-display text-lg font-bold text-[#2D2136] mt-1">{svc.title}</h5>
+                          <p className="font-body text-xs text-[#2D2136]/75 mt-1">{svc.service_overview || 'Specialist acupuncture therapy for pain relief and recovery.'}</p>
+                        </div>
+                        <Link
+                          href={`/services/${slug}/${svc.slug}`}
+                          className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#1E227D] px-5 py-2.5 font-body text-xs font-bold text-white hover:bg-[#1E227D]/90 transition-colors"
+                        >
+                          View Details <ChevronRight size={14} className="ml-1" />
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* WIDGET FOR JOINT INJECTIONS */}
+            {slug === "joint-injections" && services.length > 0 && (
+              <div className="flex flex-col gap-6">
+                <div className="pt-2">
+                  <h4 className="font-display text-sm font-bold text-[#2D2136] mb-4">Recommended Care Pathway:</h4>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="rounded-2xl bg-[#FCFAFD] border border-zinc-200 p-6 flex flex-col justify-between md:flex-row md:items-center gap-4"
+                  >
+                    <div>
+                      <span className="font-display text-[10px] font-black uppercase text-[#F000E2] tracking-wider">Joint Care</span>
+                      <h5 className="font-display text-lg font-bold text-[#2D2136] mt-1">{services[0].title}</h5>
+                      <p className="font-body text-xs text-[#2D2136]/75 mt-1">{services[0].service_overview || 'Specialist injection therapy for targeted joint relief.'}</p>
+                    </div>
+                    <Link
+                      href={`/services/${slug}/${services[0].slug}`}
                       className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#1E227D] px-5 py-2.5 font-body text-xs font-bold text-white hover:bg-[#1E227D]/90 transition-colors"
                     >
                       View Details <ChevronRight size={14} className="ml-1" />

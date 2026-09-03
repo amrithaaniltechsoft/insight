@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search, ChevronDown } from "lucide-react";
 import Button from "@/components/ui/Button";
 
@@ -44,6 +44,22 @@ export default function ServiceSearchBar({
   const [isServiceDropdownOpen, setIsServiceDropdownOpen] = useState(false);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsServiceDropdownOpen(false);
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const handleServiceSelect = (service: Service) => {
     onServiceSelect(service);
     setIsServiceDropdownOpen(false);
@@ -58,7 +74,15 @@ export default function ServiceSearchBar({
     categories.find((c) => c.slug === selectedCategory)?.title ?? "Select Category";
 
   return (
-    <div className="mt-6 w-full max-w-3xl p-4 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20" style={{ background: "linear-gradient(rgb(246, 240, 249), rgb(246, 240, 249)) padding-box padding-box, linear-gradient(135deg, rgb(62, 23, 230), rgb(181, 102, 214)) border-box border-box", border: "3px solid transparent" }}>
+    <div
+      ref={containerRef}
+      className="mt-6 w-full max-w-3xl p-4 rounded-2xl"
+      style={{
+        background:
+          "linear-gradient(rgb(246, 240, 249), rgb(246, 240, 249)) padding-box, linear-gradient(135deg, rgb(62, 23, 230), rgb(181, 102, 214)) border-box",
+        border: "3px solid transparent",
+      }}
+    >
       <div className="grid grid-cols-1 md:grid-cols-9 gap-3 items-center">
 
         {/* Category Custom Dropdown */}
@@ -70,7 +94,6 @@ export default function ServiceSearchBar({
                 setIsCategoryDropdownOpen((prev) => !prev);
                 setIsServiceDropdownOpen(false);
               }}
-              onBlur={() => setTimeout(() => setIsCategoryDropdownOpen(false), 200)}
               className="w-full flex items-center justify-between gap-2 rounded-lg bg-white border border-[#1E227D]/40 px-5 py-3 font-body text-base transition hover:bg-zinc-50 focus:border-[#1E227D] focus:outline-none focus:ring-2 focus:ring-[#1E227D]/20"
             >
               <span className={selectedCategory ? "text-zinc-800" : "text-zinc-400"}>
@@ -78,18 +101,27 @@ export default function ServiceSearchBar({
               </span>
               <ChevronDown
                 size={20}
-                className={`flex-shrink-0 text-zinc-500 transition-transform duration-200 ${isCategoryDropdownOpen ? "rotate-180" : ""
-                  }`}
+                className={`flex-shrink-0 text-zinc-500 transition-transform duration-200 ${
+                  isCategoryDropdownOpen ? "rotate-180" : ""
+                }`}
               />
             </button>
 
             {isCategoryDropdownOpen && (
-              <div className="absolute top-full left-0 z-50 mt-2 w-full max-h-48 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
+              <div className="absolute top-full left-0 z-[200] mt-1.5 w-full max-h-60 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
                 {categories.map((cat) => (
                   <div
                     key={cat.slug}
-                    onMouseDown={() => handleCategorySelect(cat)}
-                    className="cursor-pointer px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-100"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleCategorySelect(cat);
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCategorySelect(cat);
+                    }}
+                    className="cursor-pointer px-4 py-2.5 text-sm text-zinc-800 hover:bg-[#1E227D]/10 hover:text-[#1E227D] transition-colors"
                   >
                     {cat.title}
                   </div>
@@ -101,36 +133,82 @@ export default function ServiceSearchBar({
 
         {/* Service Search Input */}
         <div className={`relative ${hideCategorySelect ? "md:col-span-8" : "md:col-span-4"}`}>
-          <input
-            type="text"
-            placeholder="Select a service"
-            value={searchTerm}
-            onChange={(e) => {
-              onSearchTermChange(e.target.value);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && canSearch) {
-                e.preventDefault();
-                onSearch();
-              }
-            }}
-            onFocus={() => setIsServiceDropdownOpen(true)}
-            onBlur={() => setTimeout(() => setIsServiceDropdownOpen(false), 200)}
-            disabled={!hideCategorySelect && !selectedCategory}
-            className="w-full rounded-lg border border-[#1E227D]/40 bg-white px-5 py-3 font-body text-base text-zinc-800 placeholder:text-zinc-400 transition hover:bg-zinc-50/80 focus:border-[#1E227D] focus:outline-none focus:ring-2 focus:ring-[#1E227D]/20 disabled:cursor-not-allowed disabled:opacity-80"
-          />
+          <div className="relative flex items-center w-full">
+            <input
+              type="text"
+              placeholder="Select a service"
+              value={searchTerm}
+              onChange={(e) => {
+                onSearchTermChange(e.target.value);
+                if (!isServiceDropdownOpen) setIsServiceDropdownOpen(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && canSearch) {
+                  e.preventDefault();
+                  onSearch();
+                }
+              }}
+              onFocus={() => {
+                if (!hideCategorySelect && !selectedCategory) return;
+                setIsCategoryDropdownOpen(false);
+                setIsServiceDropdownOpen(true);
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!hideCategorySelect && !selectedCategory) return;
+                setIsCategoryDropdownOpen(false);
+                setIsServiceDropdownOpen(true);
+              }}
+              disabled={!hideCategorySelect && !selectedCategory}
+              className="w-full rounded-lg border border-[#1E227D]/40 bg-white pl-5 pr-10 py-3 font-body text-base text-zinc-800 placeholder:text-zinc-400 transition hover:bg-zinc-50/80 focus:border-[#1E227D] focus:outline-none focus:ring-2 focus:ring-[#1E227D]/20 disabled:cursor-not-allowed disabled:opacity-80"
+            />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!hideCategorySelect && !selectedCategory) return;
+                setIsCategoryDropdownOpen(false);
+                setIsServiceDropdownOpen((prev) => !prev);
+              }}
+              disabled={!hideCategorySelect && !selectedCategory}
+              className="absolute right-2 p-1.5 text-zinc-500 hover:text-zinc-700 transition-transform duration-200 focus:outline-none disabled:cursor-not-allowed"
+              tabIndex={-1}
+              aria-label="Toggle services dropdown"
+            >
+              <ChevronDown
+                size={20}
+                className={`transition-transform duration-200 ${
+                  isServiceDropdownOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          </div>
 
-          {isServiceDropdownOpen && (hideCategorySelect || selectedCategory) && filteredServices.length > 0 && (
-            <div className="absolute top-full left-0 z-50 mt-2 w-full max-h-48 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
-              {filteredServices.map((service) => (
-                <div
-                  key={service.slug}
-                  onMouseDown={() => handleServiceSelect(service)}
-                  className="cursor-pointer px-4 py-2 text-sm text-zinc-800 hover:bg-zinc-100"
-                >
-                  {service.title}
+          {isServiceDropdownOpen && (hideCategorySelect || selectedCategory) && (
+            <div className="absolute top-full left-0 z-[200] mt-1.5 w-full max-h-60 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
+              {filteredServices.length > 0 ? (
+                filteredServices.map((service) => (
+                  <div
+                    key={service.slug}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleServiceSelect(service);
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleServiceSelect(service);
+                    }}
+                    className="cursor-pointer px-4 py-2.5 text-sm text-zinc-800 hover:bg-[#1E227D]/10 hover:text-[#1E227D] transition-colors"
+                  >
+                    {service.title}
+                  </div>
+                ))
+              ) : (
+                <div className="px-4 py-3 text-sm text-zinc-500 italic">
+                  No tests found
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>

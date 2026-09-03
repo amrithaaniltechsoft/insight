@@ -21,7 +21,7 @@ export default function AboutHero() {
 
         <div className="max-w-3xl">
           <h1 className="font-display text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl">
-            About <span className="text-[#E0A2F5]">Insight Health</span>
+            About <span className="text-[#E0A2F5] whitespace-nowrap">Insight Health Services</span>
           </h1>
         </div>
       </div>

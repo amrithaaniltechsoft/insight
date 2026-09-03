@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ChevronRight, CalendarDays, ArrowRight, Clock, Coins, Check, ShieldCheck, Award, HeartPulse, UserCheck, ClipboardList } from "lucide-react";
@@ -8,6 +9,7 @@ import Button from "@/components/ui/Button";
 import GoldenDragonWave from "@/components/home/GoldenDragonWave";
 import { servicesData, FaqItem } from "./servicesData";
 import ServiceFaqs from "./ServiceFaqs";
+import { useBookNow } from "@/hooks/useBookNow";
 import { notFound } from "next/navigation";
 
 // Shape returned by Laravel API
@@ -27,6 +29,7 @@ interface ApiService {
   video_link: string | null;
   faq_link: string | null;
   image: string | null;
+  preparation: string | null;
   category_slug: string;
 }
 
@@ -60,6 +63,8 @@ export default function ServiceDetailClient({
 }: ServiceDetailClientProps) {
 
   // ── Data resolution ─────────────────────────────────────────────────────────
+  const [prepExpanded, setPrepExpanded] = useState(false);
+  const { bookNow } = useBookNow();
   // Prefer API data; fall back to static servicesData
   const staticCategory = servicesData[slug];
   const staticScan = staticCategory?.scans.find((s) => s.slug === serviceSlug);
@@ -81,6 +86,7 @@ export default function ServiceDetailClient({
   // description1 / description2 (API only; static doesn't have separate fields)
   const desc1 = stripHtml(apiService?.description1);
   const desc2 = stripHtml(apiService?.description2);
+  const preparation = stripHtml(apiService?.preparation);
 
   // FAQs — API first (no fallback if loaded from API), then static fallback
   const faqs: FaqItem[] =
@@ -162,7 +168,7 @@ export default function ServiceDetailClient({
               </div>
 
               {/* Metrics badges */}
-              <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:justify-between">
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-[auto_auto_1fr] gap-3">
                 {price && (
                   <div className="flex items-center gap-4 rounded-2xl border border-zinc-300 bg-white p-5">
                     <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#E0A2F5]/10 text-[#F000E2]">
@@ -187,17 +193,24 @@ export default function ServiceDetailClient({
                   </div>
                 )}
 
-                <div className="flex items-center gap-4 rounded-2xl border border-zinc-300 bg-white p-5">
-                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#E0A2F5]/10 text-[#F000E2]">
-                    <ClipboardList size={22} />
+                {preparation && (
+                  <div className="flex items-center gap-4 rounded-2xl border border-zinc-300 bg-white p-5">
+                    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#E0A2F5]/10 text-[#F000E2]">
+                      <ClipboardList size={22} />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-body text-[11px] font-bold uppercase tracking-wider text-[#2D2136]/50">Preparation</span>
+                      <p className={`font-body text-[14px] leading-relaxed text-[#2D2136]/80 font-medium ${!prepExpanded ? 'line-clamp-2' : ''}`}>
+                        {preparation}
+                      </p>
+                      {preparation.length > 80 && (
+                        <button onClick={() => setPrepExpanded(!prepExpanded)} className="mt-1 text-xs font-bold text-[#1E227D] hover:text-[#F000E2] transition-colors self-start">
+                          {prepExpanded ? 'Read less' : 'Read more'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="font-body text-[11px] font-bold uppercase tracking-wider text-[#2D2136]/50">Preparation</span>
-                    <p className="font-display text-base font-bold text-[#2D2136]">
-                      Includes a full bladder. Drink a litre of fluid 1 hour before a scan.
-                    </p>
-                  </div>
-                </div>
+                )}
 
               </div>
 
@@ -319,6 +332,7 @@ export default function ServiceDetailClient({
                   variant="primary"
                   icon={<ArrowRight size={16} />}
                   iconPosition="right"
+                  onClick={() => bookNow(serviceSlug)}
                   className="w-full !bg-gradient-to-b !from-[#5839E8] !to-[#2D10AD] !text-white !border-transparent hover:brightness-110 transition-all py-4 whitespace-normal"
                 >
                   <span className="inline min-[768px]:hidden min-[1280px]:inline">Book Appointment Now</span>

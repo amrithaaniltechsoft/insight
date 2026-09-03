@@ -1,0 +1,62 @@
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"MedicalClinic",
+  "@id":"https://insighthealthservices.co.uk/#medicalclinic",
+  "name":"Insight Health Services",
+  "url":"https://insighthealthservices.co.uk/",
+  "logo":"https://insighthealthservices.co.uk/wp-content/uploads/logo.png",
+  "image":"https://insighthealthservices.co.uk/wp-content/uploads/clinic.jpg",
+  "description":"Insight Health Services is a CQC-regulated private healthcare clinic in Walsall offering physiotherapy, pregnancy scans, diagnostic ultrasound, blood tests and rehabilitation services.",
+  "telephone":"+44 7777 138166",
+  "email":"info@insighthealthservices.co.uk",
+  "priceRange":"££",
+  "address":{
+      "@type":"PostalAddress",
+      "streetAddress":"1A Walsall Road",
+      "addressLocality":"Walsall",
+      "postalCode":"WS5 4QL",
+      "addressCountry":"GB"
+  },
+  "geo":{
+      "@type":"GeoCoordinates",
+      "latitude":"52.5800",
+      "longitude":"-1.9800"
+  },
+  "openingHoursSpecification":[
+      {
+        "@type":"OpeningHoursSpecification",
+        "dayOfWeek":[
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday"
+        ],
+        "opens":"08:00",
+        "closes":"21:00"
+      }
+  ],
+  "areaServed":[
+      "Walsall",
+      "Birmingham",
+      "Dudley",
+      "Wolverhampton",
+      "West Bromwich",
+      "Cannock",
+      "Coventry"
+  ],
+  "medicalSpecialty":[
+      "Physiotherapy",
+      "Diagnostic Imaging",
+      "Ultrasound",
+      "Blood Testing"
+  ],
+  "sameAs":[
+      "https://www.facebook.com/",
+      "https://www.instagram.com/"
+  ]
+}
+</script>

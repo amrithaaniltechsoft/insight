@@ -181,7 +181,7 @@ export default function AboutSection({ cms, cmsFeatures }: AboutSectionProps) {
 
           <div className="relative z-10">
             <h3 className="mb-10 max-w-md font-display text-3xl font-bold leading-tight tracking-tight text-[#2D2136]">
-              We Offer <span className="text-[#F000E2]">High Quality</span> Health Services
+              We Offer <span className="text-[#F000E2]">High-Quality</span> Healthcare Services
             </h3>
 
             <div className="flex flex-col gap-8">

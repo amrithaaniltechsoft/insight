@@ -121,7 +121,7 @@ export default function ContactContent({ contact }: ContactContentProps) {
                   Get In Touch
                 </span>
                 <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-[#2D2136]">
-                  Direct Channels
+                  Contact Us
                 </h2>
               </div>
 
@@ -209,6 +209,14 @@ export default function ContactContent({ contact }: ContactContentProps) {
                     <span className="font-bold text-[#2D2136]">{contact.sunday}</span>
                   </div>
                 </div>
+                <a
+                  href="https://insight-health-services.book.app/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-6 flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#1E227D] to-[#F000E2] py-3 font-display text-sm font-bold text-white shadow-md transition-all hover:shadow-lg"
+                >
+                  Book Appointment Now
+                </a>
               </div>
             </div>
 

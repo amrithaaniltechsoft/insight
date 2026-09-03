@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import ProductCard from "./ProductCard";
 import { ChevronDown, X, MessageSquare } from "lucide-react";
 import Button from "@/components/ui/Button";
+
+interface ProductColor {
+  id: number;
+  color_name: string;
+  image: string;
+}
 
 interface Product {
   id: number;
@@ -14,6 +20,7 @@ interface Product {
   image: string;
   category: string;
   description?: string;
+  colors?: ProductColor[];
 }
 
 interface ProductGridProps {
@@ -23,11 +30,57 @@ interface ProductGridProps {
 type MainCategory = "all" | "teddies" | "gender-reveal";
 type SubCategory = "all" | "balloons" | "cannons" | "extinguishers" | "scratch-cards" | "envelopes";
 
+const getColorFromName = (name: string): string => {
+  const cleanName = name.toLowerCase().replace(/\s+/g, '');
+  const colorMap: { [key: string]: string } = {
+    pink: "#FFC0CB",
+    lightpink: "#FFB6C1",
+    blue: "#3B82F6",
+    lightblue: "#93C5FD",
+    red: "#EF4444",
+    green: "#10B981",
+    yellow: "#FBBF24",
+    black: "#1F2937",
+    white: "#FFFFFF",
+    purple: "#8B5CF6",
+    gold: "#F59E0B",
+    silver: "#D1D5DB",
+    grey: "#6B7280",
+    gray: "#6B7280",
+    orange: "#F97316",
+    brown: "#78350F",
+    navy: "#1E3A8A",
+    teal: "#14B8A6",
+    cyan: "#06B6D4",
+    magenta: "#D946EF",
+  };
+  
+  if (colorMap[cleanName]) {
+    return colorMap[cleanName];
+  }
+  
+  if (/^(#[0-9a-f]{3,8}|rgba?\(.*\)|hsla?\(.*\)|[a-z]+)$/i.test(cleanName)) {
+    return cleanName;
+  }
+  
+  return "#E5E7EB"; // Default gray-200
+};
+
 export default function ProductGrid({ products }: ProductGridProps) {
   const [activeCategory, setActiveCategory] = useState<MainCategory>("all");
   const [activeSubCategory, setActiveSubCategory] = useState<SubCategory>("all");
   const [isSubDropdownOpen, setIsSubDropdownOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    if (selectedProduct) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [selectedProduct]);
+  const [selectedColorImage, setSelectedColorImage] = useState<string | null>(null);
 
   // Helper to categorize products dynamically
   const categorizeProduct = (product: Product) => {
@@ -126,46 +179,6 @@ export default function ProductGrid({ products }: ProductGridProps) {
             Gender Reveal Options
           </button>
         </div>
-
-        {/* Sub-category dropdown (only visible when Gender Reveal Options is active) */}
-        {/* {activeCategory === "gender-reveal" && (
-          <div className="relative w-full max-w-xs animate-in fade-in slide-in-from-top-2 duration-200">
-            <button
-              type="button"
-              onClick={() => setIsSubDropdownOpen((prev) => !prev)}
-              onBlur={() => setTimeout(() => setIsSubDropdownOpen(false), 200)}
-              className="w-full flex items-center justify-between gap-2 rounded-lg bg-white border border-[#1E227D]/40 px-4 py-2.5 font-body text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 focus:border-[#1E227D] focus:outline-none focus:ring-2 focus:ring-[#1E227D]/20 cursor-pointer"
-            >
-              <span>{selectedSubCategoryLabel}</span>
-              <ChevronDown
-                size={18}
-                className={`text-zinc-500 transition-transform duration-200 ${isSubDropdownOpen ? "rotate-180" : ""
-                  }`}
-              />
-            </button>
-
-            {isSubDropdownOpen && (
-              <div className="absolute top-full left-0 z-50 mt-2 w-full max-h-60 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg py-1">
-                {subCategoriesList.map((sub) => (
-                  <button
-                    key={sub.id}
-                    type="button"
-                    onMouseDown={() => {
-                      setActiveSubCategory(sub.id as SubCategory);
-                      setIsSubDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors duration-150 cursor-pointer ${activeSubCategory === sub.id
-                      ? "bg-[#1E227D]/10 text-[#1E227D] font-semibold"
-                      : "text-zinc-700 hover:bg-zinc-50"
-                      }`}
-                  >
-                    {sub.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )} */}
       </div>
 
       {/* Products Grid */}
@@ -178,7 +191,11 @@ export default function ProductGrid({ products }: ProductGridProps) {
               name={product.name}
               price={product.price}
               image={product.image}
-              onReadMore={() => setSelectedProduct(product)}
+              colors={product.colors}
+              onReadMore={() => {
+                setSelectedProduct(product);
+                setSelectedColorImage(null);
+              }}
             />
           ))}
         </div>
@@ -192,16 +209,16 @@ export default function ProductGrid({ products }: ProductGridProps) {
 
       {/* Product Detail Modal */}
       {selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedProduct(null)}>
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => { setSelectedProduct(null); setSelectedColorImage(null); }}>
           <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setSelectedProduct(null)} className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-md hover:bg-white transition-colors">
+            <button onClick={() => { setSelectedProduct(null); setSelectedColorImage(null); }} className="absolute top-4 right-4 z-[310] flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-md hover:bg-white transition-colors">
               <X size={18} />
             </button>
 
             <div className="flex flex-col md:flex-row-reverse">
               <div className="relative w-full md:w-2/5 aspect-[4/3] md:aspect-auto md:min-h-[300px] bg-zinc-50 flex-shrink-0">
                 <Image
-                  src={selectedProduct.image}
+                  src={selectedColorImage || selectedProduct.image}
                   alt={selectedProduct.name}
                   fill
                   className="object-cover"
@@ -214,12 +231,44 @@ export default function ProductGrid({ products }: ProductGridProps) {
                 <h2 className="mt-2 font-display text-xl font-bold tracking-tight text-[#2D2136]">{selectedProduct.name}</h2>
                 <span className="mt-2 font-display text-xl font-bold text-[#1E227D]">{selectedProduct.price}</span>
 
+                {/* Colors Display */}
+                {selectedProduct.colors && selectedProduct.colors.length > 0 && (
+                  <div className="mt-6">
+                    <span className="font-display text-xs font-bold uppercase tracking-widest text-[#2D2136]/50">Available Colors</span>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedProduct.colors.map((color) => (
+                        <button
+                          key={color.id}
+                          onClick={() => {
+                            if (selectedColorImage === color.image) {
+                              setSelectedColorImage(null);
+                            } else {
+                              setSelectedColorImage(color.image);
+                            }
+                          }}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                            selectedColorImage === color.image
+                              ? "bg-[#1E227D] text-white border-[#1E227D]"
+                              : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
+                          }`}
+                        >
+                          <span 
+                            className="relative w-4 h-4 rounded-full border border-black/10 flex-shrink-0"
+                            style={{ backgroundColor: getColorFromName(color.color_name) }}
+                          />
+                          {color.color_name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-4 font-body text-sm leading-relaxed text-[#2D2136]/70 whitespace-pre-line">
                   {selectedProduct.description?.replace(/"/g, '')}
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-zinc-100">
-                  <Link href={`/contact?enquiry=${encodeURIComponent(selectedProduct.name)}`} onClick={() => setSelectedProduct(null)}>
+                  <Link href={`/contact?enquiry=${encodeURIComponent(selectedProduct.name)}`} onClick={() => { setSelectedProduct(null); setSelectedColorImage(null); }}>
                     <Button variant="primary" className="w-full" icon={<MessageSquare size={16} />} iconPosition="left">
                       Enquire Now
                     </Button>

@@ -19,6 +19,8 @@ interface PageProps {
 
 // Fetch services from API or fallback to static
 async function getServicesForCategory(slug: string) {
+  const apiSlug = slug === "cervical-screening" ? "servical-screening" : slug;
+
   // For "all", aggregate services from all categories via API
   if (slug === "all") {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
@@ -54,12 +56,12 @@ async function getServicesForCategory(slug: string) {
   
   try {
     // Fetch services
-    const servicesRes = await fetch(`${API_URL}/services/category/${slug}`, {
+    const servicesRes = await fetch(`${API_URL}/services/category/${apiSlug}`, {
       next: { revalidate: 60 } // ISR: revalidate every 60 seconds
     });
 
     // Fetch FAQs
-    const faqsRes = await fetch(`${API_URL}/faqs/category/${slug}`, {
+    const faqsRes = await fetch(`${API_URL}/faqs/category/${apiSlug}`, {
       next: { revalidate: 60 }
     });
 
@@ -106,20 +108,31 @@ async function getServicesForCategory(slug: string) {
 // Generate dynamic SEO metadata
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+  try {
+    const res = await fetch(`${API_URL}/seos/Services`, { next: { revalidate: 60 } });
+    if (res.ok) {
+      const seo = await res.json();
+      return {
+        title: seo.meta_title || "Services | Insight Health Services Walsall",
+        description: seo.meta_description || "Explore our private healthcare services in Walsall.",
+        keywords: seo.meta_keywords || undefined,
+      };
+    }
+  } catch {}
   const data = servicesData[slug];
-  if (!data) {
-    return {
-      title: "Service Details | Insight Health Services",
-    };
-  }
   return {
-    title: data.seoTitle,
-    description: data.seoDescription,
+    title: data?.seoTitle || "Service Details | Insight Health Services",
+    description: data?.seoDescription || undefined,
   };
 }
 
 export default async function ServiceListingPage({ params }: PageProps) {
   const { slug } = await params;
+
+  if (slug === "servical-screening") {
+    redirect("/services/cervical-screening");
+  }
 
   // Blood tests has its own dedicated page with a unique design
   if (slug === "blood-tests") {

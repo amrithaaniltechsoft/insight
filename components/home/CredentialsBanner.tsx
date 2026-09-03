@@ -58,7 +58,7 @@ export default function CredentialsBanner() {
         <div className="relative h-[240px] w-full bg-white/5 md:w-2/5 flex items-start justify-center overflow-hidden">
           <img
             src="/asset-images/physiotherapist-helping-nobg.png"
-            alt="Medical Professional"
+            alt="Baby gender scan Walsall"
             className="h-full w-full object-cover"
           />
         </div>

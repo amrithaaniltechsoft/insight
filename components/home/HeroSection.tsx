@@ -256,22 +256,25 @@ export default function HeroSection() {
           >
             {/* Reduced size and boldness, highly contrasted dark color */}
             <motion.h1 variants={itemVariants} className="font-display text-3xl font-bold leading-[1.15] tracking-tight text-white md:text-4xl lg:text-5xl xl:text-6xl">
-              Your Health. Your Journey. <br />
-              <span className="text-white/80">Expertly</span> Guided.
+              Our Services
             </motion.h1>
-            <motion.p variants={itemVariants} className="mt-4 max-w-2xl font-body text-base leading-relaxed text-white/80 md:text-lg">
-              From reassuring pregnancy scans and diagnostic ultrasound to blood tests and physiotherapy, experience trusted private healthcare delivered with compassion, clarity and confidence.
+            <motion.p variants={itemVariants} className="mt-4 max-w-3xl font-body text-base leading-relaxed text-white/80 md:text-lg">
+              Pregnancy Ultrasound scans, Diagnostic Ultrasound scans.
+              Blood Tests: Pregnancy and all diagnostic tests, including Tumor markers.
+              Physiotherapy treatments, Joint injections for pain relief, Acupuncture treatments, Cervical screening &amp; Health MOT.
             </motion.p>
 
             <motion.div variants={itemVariants} className="mt-6 flex flex-col gap-4 sm:flex-row">
-              <Button
-                variant="primary"
-                icon={<CalendarDays size={20} />}
-                iconPosition="left"
-                className="!px-8 !py-4 !text-base !bg-white !text-[#FFFF] hover:!bg-white/90"
-              >
-                Book Appointment
-              </Button>
+              <a href="https://insight-health-services.book.app/" target="_blank" rel="noopener noreferrer">
+                <Button
+                  variant="primary"
+                  icon={<CalendarDays size={20} />}
+                  iconPosition="left"
+                  className="!px-8 !py-4 !text-base !bg-white !text-[#FFFF] hover:!bg-white/90"
+                >
+                  Book Appointment
+                </Button>
+              </a>
               <Link href="/services/all" passHref>
                 <Button
                   variant="secondary"
@@ -316,7 +319,7 @@ export default function HeroSection() {
                 </div>
                 <div className="h-10 w-px bg-white/20" />
                 <div className="flex flex-col items-center gap-1.5">
-                  <Image src="/reg-logos/Annotation 2026-07-20 115730.png" alt="CQC Registered" width={56} height={56} className="h-14 w-auto object-contain" />
+                  <Image src="/reg-logos/Annotation 2026-07-20 115730.png" alt="CQC Registered" width={80} height={80} className="h-20 w-auto object-contain" />
 
                 </div>
               </motion.div>
@@ -329,7 +332,7 @@ export default function HeroSection() {
 
         {/* RIGHT SIDE: Image and Comet Animation */}
         <div className="relative flex items-start justify-center lg:col-span-5 h-full w-full max-w-lg mx-auto">
-          <div className="relative h-full w-full">
+          <div className="relative h-[300px] w-full lg:h-full">
             {/* Animated Angel Wings (Placed exactly behind the woman, appearing with the woman) */}
             <motion.div
               className="absolute inset-0 z-0 pointer-events-none"
@@ -342,14 +345,14 @@ export default function HeroSection() {
 
             {/* The Pregnant Woman Image */}
             <motion.div
-              className="relative z-10 h-full w-full"
+              className="relative z-10 h-[300px] w-full lg:h-full"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
             >
               <Image
                 src="/hero-sec/p-w.png"
-                alt="Pregnant woman holding ultrasound scans"
+                alt="Early pregnancy scan Walsall"
                 fill
                 priority
                 className="object-cover object-top drop-shadow-2xl"

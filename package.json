@@ -10,18 +10,32 @@
   },
   "dependencies": {
     "framer-motion": "^12.40.0",
+    "js-yaml": "^4.3.1",
     "lucide-react": "^1.20.0",
-    "next": "16.2.9",
+    "mysql2": "^3.23.3",
+    "next": "16.3.0-preview.7",
+    "postcss": "^8.5.23",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-day-picker": "^10.0.1",
+    "react-dom": "19.2.4",
+    "sharp": "^0.35.3"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.23",
+      "sharp": "^0.35.3"
+    },
+    "minimatch": "^10.2.5",
+    "brace-expansion": "^5.0.9",
+    "nanoid": "^3.3.17"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.0-preview.7",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

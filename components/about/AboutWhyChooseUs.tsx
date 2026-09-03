@@ -208,14 +208,16 @@ export default function AboutWhyChooseUs({
             </div>
 
             <div className="mt-10">
-              <Button
-                variant="primary"
-                icon={<ArrowRight size={16} />}
-                iconPosition="right"
-                className="w-full sm:w-auto !bg-gradient-to-b !from-[#5839E8] !to-[#2D10AD] !text-white !border-transparent hover:brightness-110 transition-all"
-              >
-                Book Your Visit Today
-              </Button>
+              <a href="https://insight-health-services.book.app/" target="_blank" rel="noopener noreferrer">
+                <Button
+                  variant="primary"
+                  icon={<ArrowRight size={16} />}
+                  iconPosition="right"
+                  className="w-full sm:w-auto !bg-gradient-to-b !from-[#5839E8] !to-[#2D10AD] !text-white !border-transparent hover:brightness-110 transition-all"
+                >
+                  Book Your Visit Today
+                </Button>
+              </a>
             </div>
           </div>
         </motion.div>

@@ -3,10 +3,14 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronDown, ChevronRight, CalendarDays, Phone, Menu, X, Search, ClipboardList } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronRight, Phone, Menu, X, Search, ClipboardList, User, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/ui/Button";
 import { navigationData as staticNavigationData } from "./navigation";
+import SignInModal from "@/components/signin/SignInModal";
+import BookAppointmentModal from "./BookAppointmentModal";
+import { useBookNow } from "@/hooks/useBookNow";
 
 interface Category {
   id: number;
@@ -76,6 +80,16 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
   const [mobileServiceOpen, setMobileServiceOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSignInOpen, setIsSignInOpen] = useState(false);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [userFirstName, setUserFirstName] = useState("");
+  const [userLastName, setUserLastName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [userGender, setUserGender] = useState("");
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const router = useRouter();
+  const { bookNow } = useBookNow();
   const [navigationData, setNavigationData] = useState(staticNavigationData);
 
   // Per-category service data fetched from API (keyed by category slug)
@@ -88,7 +102,8 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
     setLoadingCatSlug(catSlug);
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-      const res = await fetch(`${API_URL}/services/category/${catSlug}`);
+      const apiCategorySlug = catSlug === 'cervical-screening' ? 'servical-screening' : catSlug;
+      const res = await fetch(`${API_URL}/services/category/${apiCategorySlug}`);
       if (res.ok) {
         const data = await res.json();
         const services: ApiServiceItem[] = data.services || [];
@@ -152,7 +167,8 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
           // Build navigation from API data, using slug for URL paths
           const mappedNavigation = categoriesWithSubCategories.map((cat) => {
             // Use the slug from DB; fallback to slugified name
-            const catSlug = cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-');
+            const rawCatSlug = cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-');
+            const catSlug = rawCatSlug === 'servical-screening' ? 'cervical-screening' : rawCatSlug;
 
             // Blood Tests has its own dedicated route
             const catHref = catSlug === 'blood-tests'
@@ -211,7 +227,9 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
             };
           });
 
-          setNavigationData(mappedNavigation);
+          if (mappedNavigation.length > 0) {
+            setNavigationData(mappedNavigation);
+          }
         }
       } catch (error) {
         console.error('Error fetching categories:', error);
@@ -236,6 +254,51 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    const handleOpenSignIn = () => setIsSignInOpen(true);
+    window.addEventListener("open-signin-modal", handleOpenSignIn);
+    return () => window.removeEventListener("open-signin-modal", handleOpenSignIn);
+  }, []);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const signedIn = localStorage.getItem("is_signed_in") === "true";
+      setIsSignedIn(signedIn);
+      setUserFirstName(localStorage.getItem("user_first_name") || "");
+      setUserLastName(localStorage.getItem("user_last_name") || "");
+      setUserEmail(localStorage.getItem("user_email") || "");
+      setUserGender(localStorage.getItem("user_gender") || "");
+    };
+    checkAuth();
+    window.addEventListener("auth-state-changed", checkAuth);
+    return () => window.removeEventListener("auth-state-changed", checkAuth);
+  }, []);
+
+  const handleSignOut = () => {
+    localStorage.removeItem("is_signed_in");
+    localStorage.removeItem("user_email");
+    localStorage.removeItem("user_first_name");
+    localStorage.removeItem("user_last_name");
+    localStorage.removeItem("user_gender");
+    localStorage.removeItem("user_dob");
+    localStorage.removeItem("user_title");
+    localStorage.removeItem("user_mobile");
+    localStorage.removeItem("user_address1");
+    localStorage.removeItem("user_address2");
+    localStorage.removeItem("user_suburb");
+    localStorage.removeItem("user_city");
+    localStorage.removeItem("user_state");
+    localStorage.removeItem("user_zip");
+    localStorage.removeItem("user_country");
+    setIsSignedIn(false);
+    setUserFirstName("");
+    setUserLastName("");
+    setUserEmail("");
+    setUserGender("");
+    setIsProfileOpen(false);
+    router.push("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white shadow-sm">
@@ -263,8 +326,8 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
           {/* NAVIGATION COLUMN */}
           <div className="flex w-full flex-col pl-[185px] lg:pl-[200px]">
             {/* TOP LAYER (Utility & Contact) */}
-            <div className="flex h-10 items-center justify-between rounded-b-xl bg-gradient-to-r from-[#1E227D] to-[#F000E2] px-8">
-              <nav className="flex gap-8 font-body text-[13px] font-medium text-white/80">
+            <div className="flex h-10 items-center justify-between rounded-b-xl bg-gradient-to-r from-[#1E227D] to-[#F000E2] px-6 2xl:px-8">
+              <nav className="flex shrink-0 items-center gap-5 2xl:gap-8 font-body text-[13px] font-medium text-white/80">
                 <Link href="/" className="transition-colors hover:text-white">Home</Link>
                 <Link href="/about" className="transition-colors hover:text-white">About us</Link>
                 <Link href="/reviews" className="transition-colors hover:text-white">Reviews</Link>
@@ -272,27 +335,124 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                 <Link href="/faq" className="transition-colors hover:text-white">FAQ</Link>
                 <Link href="/shop" className="transition-colors hover:text-white">Shop</Link>
                 <Link href="/contact" className="transition-colors hover:text-white">Contact us</Link>
+                <button
+                  onClick={() => setIsBookingOpen(true)}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 font-bold text-[#1E227D] transition-colors hover:bg-[#E0A2F5] hover:text-[#2D2136]"
+                >
+                  Book Now
+                </button>
               </nav>
 
               {/* Direct Contact Links */}
-              <div className="flex items-center gap-6 font-body text-[13px] font-bold text-white/90">
-                <a href={`tel:${contact1.replace(/\s/g, '')}`} className="flex items-center gap-2 transition-colors hover:text-white">
+              <div className="flex shrink-0 items-center gap-4 2xl:gap-6 font-body text-[13px] font-bold text-white/90">
+                <a href={`tel:+44${contact1.replace(/\s/g, '').replace(/^0/, '')}`} className="flex items-center gap-2 transition-colors hover:text-white">
                   <Phone size={14} className="text-white/80" />
                   {contact1}
                 </a>
                 <div className="h-4 w-px bg-white/20" />
-                <a href={`https://wa.me/${contact2.replace(/\s/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 transition-colors hover:text-[#25D366]">
+                <a href={`https://wa.me/44${contact2.replace(/\s/g, '').replace(/^0/, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 transition-colors hover:text-[#25D366]">
                   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" className="text-[#FFFF]">
                     <path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z" />
                   </svg>
                   WhatsApp Us
                 </a>
+
+                {/* Vertical Divider */}
+                <div className="h-4 w-px bg-white/20" />
+
+                <button
+                  onClick={() => setIsSearchOpen(true)}
+                  className="flex items-center justify-center p-2 rounded-full bg-white/10 text-white/90 transition-colors hover:bg-white/20 hover:text-white"
+                  aria-label="Search"
+                >
+                  <Search size={14} strokeWidth={3} />
+                </button>
+
+                <div className="h-4 w-px bg-white/20" />
+
+                {isSignedIn ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsProfileOpen(!isProfileOpen)}
+                      className="flex items-center gap-2 rounded-full border border-white bg-white/5 px-3 py-1.5 text-[13px] font-bold text-white transition-colors hover:border-white hover:bg-white/15"
+                    >
+                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F000E2] text-[10px] font-bold text-white">
+                        {userFirstName.charAt(0).toUpperCase()}{userLastName.charAt(0).toUpperCase()}
+                      </div>
+                      {userFirstName}
+                    </button>
+                    {isProfileOpen && (
+                      <>
+                        <div className="fixed inset-0 z-[40]" onClick={() => setIsProfileOpen(false)} />
+                        <div className="absolute right-0 top-full z-[50] mt-2 w-64 overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-2xl">
+                          <div className="flex items-center gap-3 bg-gradient-to-r from-[#1E227D]/5 to-[#F000E2]/5 px-5 py-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1E227D] to-[#F000E2] text-base font-bold text-white">
+                              {userFirstName.charAt(0).toUpperCase()}{userLastName.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-display text-sm font-bold text-[#2D2136] truncate">{userFirstName} {userLastName}</p>
+                              <p className="font-body text-xs text-zinc-500 truncate">{userEmail}</p>
+                              {userGender && (
+                                <p className="font-body text-[11px] text-zinc-400">{userGender}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="py-1.5">
+                            <Link
+                              href="/profile"
+                              onClick={() => setIsProfileOpen(false)}
+                              className="flex w-full items-center gap-3 px-5 py-2.5 font-body text-sm font-semibold text-[#2D2136] transition-colors hover:bg-zinc-50"
+                            >
+                              <User size={16} className="text-[#1E227D]" />
+                              My Profile
+                            </Link>
+                            <Link
+                              href="/my-bookings"
+                              onClick={() => setIsProfileOpen(false)}
+                              className="flex w-full items-center gap-3 px-5 py-2.5 font-body text-sm font-semibold text-[#2D2136] transition-colors hover:bg-zinc-50"
+                            >
+                              <ClipboardList size={16} className="text-[#1E227D]" />
+                              My Bookings
+                            </Link>
+                            <Link
+                              href="/my-results"
+                              onClick={() => setIsProfileOpen(false)}
+                              className="flex w-full items-center gap-3 px-5 py-2.5 font-body text-sm font-semibold text-[#2D2136] transition-colors hover:bg-zinc-50"
+                            >
+                              <CheckCircle size={16} className="text-[#1E227D]" />
+                              My Results
+                            </Link>
+                          </div>
+                          <div className="border-t border-zinc-100 py-1.5">
+                            <button
+                              onClick={handleSignOut}
+                              className="flex w-full items-center gap-3 px-5 py-2.5 font-body text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
+                            >
+                              Sign Out
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIsSignInOpen(true)}
+                      className="flex items-center gap-2 px-4 py-1 rounded-full border border-white bg-white/5 hover:border-white hover:bg-white/15 transition-all cursor-pointer font-bold text-white"
+                    >
+                      <User size={14} className="text-white" />
+                      <span>Sign In</span>
+                    </button>
+                  </div>
+                )}
+
               </div>
             </div>
 
             {/* BOTTOM LAYER (Primary Services & Booking) */}
             <div className="flex h-16 items-center justify-between">
-              <div className="flex items-center gap-3 2xl:gap-6">
+              <div className="flex items-center gap-1.5 2xl:gap-3">
                 {navigationData.map((item, idx) => {
                   const IconComponent = item.icon;
                   // Derive the category slug from the href (e.g. /services/pregnancy-scans => pregnancy-scans)
@@ -307,7 +467,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                     >
                       <Link
                         href={item.href}
-                        className="flex items-center gap-1.5 font-display text-[12px] 2xl:text-[13px] font-bold text-[#2D2136] transition-colors hover:text-[#F000E2] whitespace-nowrap"
+                        className="flex items-center gap-1.5 font-display text-[11px] 2xl:text-[12px] font-bold text-[#2D2136] transition-colors hover:text-[#F000E2] whitespace-nowrap"
                       >
                         <IconComponent size={15} className="text-[#F000E2]" />
                         {item.label}
@@ -315,7 +475,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                       </Link>
 
                       <div className="invisible absolute left-0 right-0 top-full z-20 w-full origin-top -translate-y-2 scale-y-95 bg-white opacity-0 shadow-2xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:scale-y-100 group-hover:opacity-100 overflow-hidden">
-                        <div className="max-h-[380px] overflow-y-auto border-t border-zinc-100 scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
+                        <div className="border-t border-zinc-100">
                           <div className="container mx-auto max-w-5xl flex justify-between gap-10 p-8">
 
                             {/* ── SERVICES TABLE (dynamic from API) ── */}
@@ -448,21 +608,6 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
 
               {/* Re-located Primary CTA */}
               <div className="flex items-center gap-2 2xl:gap-3">
-                <button
-                  onClick={() => setIsSearchOpen(true)}
-                  className="flex items-center justify-center p-2.5 rounded-full border border-zinc-200 text-[#2D2136] hover:bg-zinc-50 hover:border-[#F000E2] hover:text-[#F000E2] transition-all"
-                  aria-label="Search site"
-                >
-                  <Search size={16} />
-                </button>
-                <Button
-                  variant="primary"
-                  icon={<CalendarDays size={16} />}
-                  iconPosition="left"
-                  className="!px-5 !py-2.5 !text-[13px] whitespace-nowrap"
-                >
-                  Book Now
-                </Button>
               </div>
             </div>
           </div>
@@ -488,6 +633,14 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
           </Link>
 
           <div className="flex items-center gap-3">
+            {/* Booking Button */}
+            <button
+              onClick={() => setIsBookingOpen(true)}
+              className="flex items-center gap-1.5 rounded-full bg-[#1E227D] px-3 py-2 font-display text-[11px] font-bold text-white transition-colors hover:bg-[#F000E2]"
+            >
+              Book Now
+            </button>
+
             {/* Search Button */}
             <button
               onClick={() => setIsSearchOpen(true)}
@@ -497,13 +650,84 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
               <Search size={20} />
             </button>
 
-            {/* Book Now Button */}
-            <Button
-              variant="primary"
-              className="!px-4 !py-2 !text-[12px] whitespace-nowrap"
-            >
-              Book Now
-            </Button>
+            {/* Sign In / Profile Button */}
+            {isSignedIn ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="flex items-center gap-1.5 rounded-full bg-[#1E227D] px-3 py-2 font-display text-[11px] font-bold text-white transition-colors hover:bg-[#F000E2]"
+                >
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#F000E2] text-[10px] font-bold text-white">
+                    {userFirstName.charAt(0).toUpperCase()}{userLastName.charAt(0).toUpperCase()}
+                  </div>
+                  {userFirstName}
+                </button>
+                {isProfileOpen && (
+                  <>
+                    <div className="fixed inset-0 z-[55]" onClick={() => setIsProfileOpen(false)} />
+                    <div className="absolute right-0 top-full z-[60] mt-2 w-52 overflow-hidden rounded-2xl border border-zinc-100 bg-white shadow-2xl">
+                      <div className="bg-gradient-to-r from-[#1E227D]/5 to-[#F000E2]/5 px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1E227D] to-[#F000E2] text-sm font-bold text-white">
+                            {userFirstName.charAt(0).toUpperCase()}{userLastName.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-display text-sm font-bold text-[#2D2136] truncate">{userFirstName} {userLastName}</p>
+                            <p className="font-body text-xs text-zinc-500 truncate">{userEmail}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="py-1.5">
+                        <Link
+                          href="/profile"
+                          onClick={() => setIsProfileOpen(false)}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 font-body text-sm font-semibold text-[#2D2136] transition-colors hover:bg-zinc-50"
+                        >
+                          <User size={16} className="text-[#1E227D]" />
+                          My Profile
+                        </Link>
+                        <Link
+                          href="/my-bookings"
+                          onClick={() => setIsProfileOpen(false)}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 font-body text-sm font-semibold text-[#2D2136] transition-colors hover:bg-zinc-50"
+                        >
+                          <ClipboardList size={16} className="text-[#1E227D]" />
+                          My Bookings
+                        </Link>
+                        <Link
+                          href="/my-results"
+                          onClick={() => setIsProfileOpen(false)}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 font-body text-sm font-semibold text-[#2D2136] transition-colors hover:bg-zinc-50"
+                        >
+                          <CheckCircle size={16} className="text-[#1E227D]" />
+                          My Results
+                        </Link>
+                      </div>
+                      <div className="border-t border-zinc-100 py-1.5">
+                        <button
+                          onClick={handleSignOut}
+                          className="flex w-full items-center gap-2 px-4 py-2.5 font-body text-sm font-semibold text-red-500 transition-colors hover:bg-red-50"
+                        >
+                          Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="primary"
+                  className="!px-4 !py-2 !text-[12px] whitespace-nowrap"
+                  icon={<User size={14} />}
+                  iconPosition="left"
+                  onClick={() => setIsSignInOpen(true)}
+                >
+                  Sign In
+                </Button>
+              </div>
+            )}
 
             {/* Burger Menu Button */}
             <button
@@ -531,7 +755,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
           </button>
 
           {mobileServiceOpen && (
-            <div className="absolute left-4 right-4 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg scrollbar-thin scrollbar-thumb-zinc-200 scrollbar-track-transparent">
+            <div className="absolute left-4 right-4 top-full z-50 mt-1 rounded-lg border border-zinc-200 bg-white shadow-lg">
               {navigationData.map((item, idx) => {
                 const catSlug = item.href.split('/').pop() || '';
                 return (
@@ -800,17 +1024,73 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                       { name: "Blogs", path: "/blogs" },
                       { name: "FAQ", path: "/faq" },
                       { name: "Shop", path: "/shop" },
-                      { name: "Contact us", path: "/contact" }
-                    ].map((link, idx) => (
-                      <Link
-                        key={idx}
-                        href={link.path}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="font-display text-base font-bold text-[#2D2136] hover:text-[#1E227D] transition-colors text-left"
-                      >
-                        {link.name}
-                      </Link>
-                    ))}
+                      { name: "Contact us", path: "/contact" },
+                      ].map((link, idx) => (
+                        <Link
+                          key={idx}
+                          href={link.path}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="font-display text-base font-bold text-[#2D2136] hover:text-[#1E227D] transition-colors text-left"
+                        >
+                          {link.name}
+                        </Link>
+                      ))}
+                      {isSignedIn ? (
+                        <>
+                          <div className="flex items-center gap-3 border-b border-zinc-100 pb-4">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#1E227D] to-[#F000E2] text-sm font-bold text-white">
+                              {userFirstName.charAt(0).toUpperCase()}{userLastName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-display text-sm font-bold text-[#2D2136]">{userFirstName} {userLastName}</p>
+                              <p className="font-body text-xs text-zinc-500">{userEmail}</p>
+                            </div>
+                          </div>
+                          <Link
+                            href="/profile"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-2 font-display text-base font-bold text-[#1E227D] hover:text-[#F000E2] transition-colors text-left"
+                          >
+                            <User size={18} />
+                            My Profile
+                          </Link>
+                          <Link
+                            href="/my-bookings"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-2 font-display text-base font-bold text-[#1E227D] hover:text-[#F000E2] transition-colors text-left"
+                          >
+                            <ClipboardList size={18} />
+                            My Bookings
+                          </Link>
+                          <Link
+                            href="/my-results"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-2 font-display text-base font-bold text-[#1E227D] hover:text-[#F000E2] transition-colors text-left"
+                          >
+                            <CheckCircle size={18} />
+                            My Results
+                          </Link>
+                          <button
+                            onClick={handleSignOut}
+                            className="flex items-center gap-2 font-display text-base font-bold text-red-500 hover:text-red-600 transition-colors text-left"
+                          >
+                            Sign Out
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setMobileMenuOpen(false);
+                              setIsSignInOpen(true);
+                            }}
+                            className="flex items-center gap-2.5 font-display text-base font-bold text-[#1E227D] hover:text-[#F000E2] transition-colors text-left cursor-pointer"
+                          >
+                            <User size={18} />
+                            <span>Sign In</span>
+                          </button>
+                        </>
+                      )}
                   </nav>
 
                 </div>
@@ -818,7 +1098,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                 {/* CTA */}
                 <div className="p-6 pt-0">
                   <a
-                    href={`tel:${contact1.replace(/\s/g, '')}`}
+                    href={`tel:+44${contact1.replace(/\s/g, '').replace(/^0/, '')}`}
                     className="
                       flex w-full items-center justify-center gap-2.5
                       rounded-xl
@@ -829,7 +1109,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
                     "
                   >
                     <Phone size={15} />
-                    <span>Call Hotline: {contact1}</span>
+                    <span>Phone: {contact1}</span>
                   </a>
                 </div>
 
@@ -1020,6 +1300,10 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
           </>
         )}
       </AnimatePresence>
+
+      <SignInModal isOpen={isSignInOpen} onClose={() => setIsSignInOpen(false)} onSignInSuccess={() => { window.dispatchEvent(new Event("auth-state-changed")); }} />
+
+      <BookAppointmentModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} />
 
     </header>
   );

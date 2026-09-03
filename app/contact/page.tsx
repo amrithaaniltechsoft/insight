@@ -1,10 +1,25 @@
 import PageBanner from "@/components/global/PageBanner";
 import ContactContent from "@/components/contact/ContactContent";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "Contact Us | Insight Health Services Walsall",
-  description: "Contact our Walsall private healthcare clinic. View our clinic hotline, WhatsApp numbers, opening hours, address details, and location map.",
-};
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+
+async function getSeoByPage(page: string) {
+  try {
+    const res = await fetch(`${API_URL}/seos/${page}`, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoByPage('Contact');
+  return {
+    title: seo?.meta_title || "Contact Us | Insight Health Services Walsall",
+    description: seo?.meta_description || "Contact our Walsall private healthcare clinic. View our clinic hotline, WhatsApp numbers, opening hours, address details, and location map.",
+    keywords: seo?.meta_keywords || undefined,
+  };
+}
 
 interface ContactData {
   contact1: string;

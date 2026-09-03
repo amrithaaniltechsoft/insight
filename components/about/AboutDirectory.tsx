@@ -70,6 +70,12 @@ export default function AboutDirectory() {
     };
   });
 
+  const imageAltsSpecificServices = [
+  "Baby scans Walsall",
+  "4D baby scans Walsall",
+  "Urgent diagnostic Ultrasound Walsall",
+];
+
   return (
     <section className="relative w-full bg-[#FCFAFD] py-24 lg:py-32">
       {/* TOP WAVE DIVIDER */}
@@ -184,7 +190,7 @@ export default function AboutDirectory() {
                 <div className="absolute bottom-0 left-0 right-0 z-10 h-[240px] w-full">
                   <Image
                     src={service.image}
-                    alt={service.category}
+                    alt={imageAltsSpecificServices[index] || service.category}
                     fill
                     className="object-contain object-bottom transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:scale-105"
                     sizes="(max-width: 768px) 100vw, 33vw"

@@ -3,6 +3,7 @@
 import { Check, Sparkles, ArrowRight } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { motion } from "framer-motion";
+import { useBookNow } from "@/hooks/useBookNow";
 
 export interface PackageData {
   name: string;
@@ -107,6 +108,7 @@ function DragonWaveBackground() {
 }
 
 export default function PremiumPackages({ packages, eyebrow, title, description }: PremiumPackagesProps) {
+  const { bookNow } = useBookNow();
   const pkgList = packages.map((pkg, i) => ({
     name: pkg.name,
     category: pkg.category,
@@ -192,15 +194,18 @@ export default function PremiumPackages({ packages, eyebrow, title, description 
                 </ul>
 
                 <div className="pt-2">
-                  <Button className={`w-full !py-2.5 !text-xs ${styles.btnStyle}`}>
+                  <Button
+                    onClick={() => bookNow()}
+                    className={`w-full !py-2.5 !text-xs ${styles.btnStyle}`}
+                  >
                     <div className="relative flex items-center justify-center overflow-hidden">
                       <span className="absolute top-0 left-0 z-10 h-full w-1/2 -skew-x-[30deg] bg-gradient-to-r from-transparent via-white/80 to-transparent" style={{ transform: "translateX(250%)" }} />
                       <div className="flex items-center gap-2 duration-[1.125s] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:-translate-y-10">
-                        <span>Book Scan</span>
+                        <span>Book Now</span>
                         <ArrowRight size={14} />
                       </div>
                       <div className="absolute top-10 left-0 flex w-full items-center justify-center gap-2 duration-[1.125s] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:top-0">
-                        <span>Book Scan</span>
+                        <span>Book Now</span>
                         <ArrowRight size={14} />
                       </div>
                     </div>

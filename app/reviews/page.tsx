@@ -1,11 +1,28 @@
-import Script from "next/script";
 import PageBanner from "@/components/global/PageBanner";
 import CTASection from "@/components/home/CTASection";
+import GoogleReviews from "@/components/home/GoogleReviews";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "Patient Reviews | Insight Health Services Walsall",
-  description: "Read genuine feedback and clinical testimonials from patients who visited our private ultrasound and wellness clinic in Walsall.",
-};
+export const dynamic = 'force-dynamic';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+
+async function getSeoByPage(page: string) {
+  try {
+    const res = await fetch(`${API_URL}/seos/${page}`, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoByPage('Reviews');
+  return {
+    title: seo?.meta_title || "Patient Reviews | Insight Health Services Walsall",
+    description: seo?.meta_description || "Read genuine feedback and clinical testimonials from patients who visited our private ultrasound and wellness clinic in Walsall.",
+    keywords: seo?.meta_keywords || undefined,
+  };
+}
 
 export default function ReviewsPage() {
   const breadcrumbs = [
@@ -15,17 +32,12 @@ export default function ReviewsPage() {
 
   return (
     <main className="w-full bg-[#FCFAFD] overflow-hidden">
-      <Script src="https://elfsightcdn.com/platform.js" strategy="lazyOnload" />
       <PageBanner
         title="Patient"
         highlightedTitle="Reviews"
         breadcrumbs={breadcrumbs}
       />
-      <section className="py-16 lg:py-24">
-        <div className="container mx-auto px-6 lg:px-12">
-          <div className="elfsight-app-46a1acc6-6126-4429-93c8-7e1fb83e1925" data-elfsight-app-lazy />
-        </div>
-      </section>
+      <GoogleReviews />
       <CTASection />
     </main>
   );

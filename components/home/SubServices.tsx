@@ -181,9 +181,10 @@ export default function SubServices({ services, categories: apiCategories, searc
     }
   };
 
-  const filteredServices = servicesForCategory.filter((service) =>
-    service.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredServices = servicesForCategory.filter((service) => {
+    const isSelectedMatch = Boolean(selectedService && searchTerm.trim() === selectedService.title.trim());
+    return !searchTerm.trim() || isSelectedMatch || service.title.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const handleSearch = () => {
     const target = selectedService || filteredServices[0];
@@ -341,6 +342,14 @@ export default function SubServices({ services, categories: apiCategories, searc
             }}
           >
             {servicesList.map((service, index) => {
+             
+              const imageAltsCat = [
+                "Private pregnancy scan Wolverhampton",
+                "Private ultrasound scan Birmingham",
+                "Private blood tests Walsall",
+                "Physiotherapy Walsall",
+                "Acupuncture Walsall",
+              ];
               return (
                 <div
                   key={index}
@@ -353,7 +362,7 @@ export default function SubServices({ services, categories: apiCategories, searc
                   <div className="relative h-44 w-full bg-zinc-100 overflow-hidden">
                     <Image
                       src={service.image}
-                      alt={service.title}
+                      alt={imageAltsCat[index] || service.title}
                       fill
                       className="object-cover transition-transform duration-700 hover:scale-105"
                       sizes="(max-width: 768px) 100vw, 33vw"

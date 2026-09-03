@@ -189,7 +189,7 @@ export default function AboutNarrative({ cms }: { cms?: CmsAbout | null }) {
           <div className="relative z-10 w-full h-[320px] md:h-[600px]">
             <Image
               src={image}
-              alt="Clinical Care Specialists"
+              alt="Same day ultrasound scan Walsall"
               fill
               className="object-contain object-bottom transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] hover:scale-105"
               sizes="(max-width: 768px) 100vw, 30vw"

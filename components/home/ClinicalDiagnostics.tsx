@@ -57,7 +57,10 @@ export default function ClinicalDiagnostics({ diagnostics }: ClinicalDiagnostics
       transition: { type: "spring" as const, stiffness: 100 },
     },
   };
-
+const imageAltsmiddleContent = [
+  "Steroid injection Walsall",
+  "NIPT blood test Walsall",
+];
   return (
     <section
       className="relative w-full bg-[#E7BEF8] py-24 lg:py-32"
@@ -132,10 +135,11 @@ export default function ClinicalDiagnostics({ diagnostics }: ClinicalDiagnostics
         {/* 2-Column Services-Style Grid */}
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:gap-12">
           {items.map((item, index) => (
+            
             <motion.div key={index} variants={itemVariants}>
               <Link
                 href={item.href}
-                className={`group relative flex h-[550px] flex-col overflow-hidden rounded-[2.5rem] ${item.bgColor} p-8 transition-all duration-500 hover:-translate-y-2 hover:shadow-xl hover:shadow-[#2D2136]/10 lg:p-10`}
+                className={`group relative flex h-[750px] flex-col overflow-hidden rounded-[2.5rem] ${item.bgColor} p-8 transition-all duration-500 hover:-translate-y-2 hover:shadow-xl hover:shadow-[#2D2136]/10 lg:p-10`}
               >
                 <GoldenDragonWave className="opacity-40 transition-opacity duration-500 group-hover:opacity-60" />
 
@@ -161,7 +165,7 @@ export default function ClinicalDiagnostics({ diagnostics }: ClinicalDiagnostics
                 <div className="relative z-10 -mx-8 -mb-8 lg:-mx-10 lg:-mb-10 h-[340px]">
                   <Image
                     src={item.image}
-                    alt={item.title}
+                      alt={imageAltsmiddleContent[index] || item.title}
                     fill
                     className="object-contain object-bottom transition-transform duration-700 ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:scale-105"
                     sizes="(max-width: 768px) 100vw, 50vw"

@@ -10,6 +10,7 @@ import GoldenDragonWave from "@/components/home/GoldenDragonWave";
 import { ScanService } from "./servicesData";
 import ServiceSearchBar from "@/components/ui/ServiceSearchBar";
 import { navigationData } from "@/components/global/navigation";
+import { useBookNow } from "@/hooks/useBookNow";
 
 interface ServiceListingProps {
   scans: ScanService[];
@@ -18,6 +19,7 @@ interface ServiceListingProps {
 
 export default function ServiceListing({ scans, slug }: ServiceListingProps) {
   const router = useRouter();
+  const { bookNow } = useBookNow();
   const [selectedCategory, setSelectedCategory] = useState<string>(slug === "all" ? "" : slug);
   const [selectedService, setSelectedService] = useState<{ slug: string; title: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,9 +41,10 @@ export default function ServiceListing({ scans, slug }: ServiceListingProps) {
       slug: scan.slug,
     }));
 
-  const filteredServices = servicesForCategory.filter((service) =>
-    service.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredServices = servicesForCategory.filter((service) => {
+    const isSelectedMatch = Boolean(selectedService && searchTerm.trim() === selectedService.title.trim());
+    return !searchTerm.trim() || isSelectedMatch || service.title.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   const resolvedService =
     selectedService ??
@@ -232,6 +235,7 @@ export default function ServiceListing({ scans, slug }: ServiceListingProps) {
                   <div className="grid grid-cols-2 gap-3">
                     <Button
                       variant="primary"
+                      onClick={() => bookNow(scan.slug)}
                       className="!px-3 !py-2.5 !text-xs !bg-gradient-to-b !from-[#5839E8] !to-[#2D10AD] w-full"
                     >
                       Book Now

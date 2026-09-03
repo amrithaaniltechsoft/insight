@@ -154,11 +154,14 @@ export default function ServiceListingClient({
       <ServiceListing scans={scans} slug={slug} />
 
       {/* Interactive Assessment Calculator */}
-      <ServiceCalculator
-        slug={slug}
-        title={calculatorTitle}
-        subtitle={calculatorSubtitle}
-      />
+      {slug !== "msk-scans" && slug !== "cervical-screening" && slug !== "servical-screening" && (
+        <ServiceCalculator
+          slug={slug}
+          title={calculatorTitle}
+          subtitle={calculatorSubtitle}
+          services={services.length > 0 ? services as ApiService[] : []}
+        />
+      )}
 
       {/* FAQ Accordion - only show if there are FAQs and handle API/static fallback cleanly */}
       {(() => {

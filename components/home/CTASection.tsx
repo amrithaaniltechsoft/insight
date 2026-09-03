@@ -88,16 +88,18 @@ export default function CTASection({ contact2 = '07777 138 166' }: { contact2?: 
           {/* LEFT CONTENT */}
           <div className="relative z-10 flex w-full max-w-2xl flex-col items-start justify-center text-left p-10 md:w-3/5 md:p-16 lg:p-20">
             <h2 className="font-display text-3xl font-medium tracking-tight text-white md:text-4xl lg:text-[2.75rem] lg:leading-[1.1]">
-              Get the premium healthcare you deserve with Insight Health.
+              Get the premium healthcare you deserve with Insight Health Services.
             </h2>
 
             <p className="mt-6 font-body text-[15px] text-white/80">
-              Still have questions about our services? Call our Walsall clinic at <strong className="font-bold text-white">{contact2}</strong>
+              Still have questions about our services? Call our Walsall clinic at <strong className="font-bold text-white">01922 351933</strong> or <strong className="font-bold text-white">{contact2}</strong>
             </p>
 
             <div className="mt-6 flex flex-col gap-4 sm:flex-row mb-12">
               <a
-                href="#"
+                href="https://insight-health-services.book.app/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="group cursor-pointer rounded-full font-body text-[15px] font-semibold transition-all active:scale-95 inline-flex justify-center bg-gradient-to-b from-[#5839E8] to-[#2D10AD] hover:brightness-105 border border-white text-[#FCFAFD] font-bold px-7 py-3.5 !bg-white !text-[#FFFF] hover:!bg-white/90"
               >
                 <div className="relative flex items-center justify-center overflow-hidden">
@@ -122,7 +124,7 @@ export default function CTASection({ contact2 = '07777 138 166' }: { contact2?: 
           <div className="relative z-10 min-h-[340px] sm:min-h-[380px] md:min-h-[auto] md:w-2/5 lg:min-h-[360px]">
             <Image
               src="/cta/cta.png"
-              alt="Medical Professional"
+              alt="Early gender blood test Walsall"
               fill
               className="object-contain object-bottom"
               sizes="(max-width: 768px) 100vw, 40vw"

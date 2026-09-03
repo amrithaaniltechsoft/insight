@@ -20,12 +20,6 @@ interface ContactData {
   sunday: string;
 }
 
-interface FooterService {
-  title: string;
-  slug: string;
-  categorySlug: string;
-}
-
 async function getContact(): Promise<ContactData> {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
   try {
@@ -61,35 +55,8 @@ async function getCms(id: number): Promise<string | null> {
   }
 }
 
-async function getFooterServices(): Promise<FooterService[]> {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
-  try {
-    const catRes = await fetch(`${API_URL}/categories`, { next: { revalidate: 60 } });
-    if (!catRes.ok) return [];
-    const cats: { slug: string }[] = await catRes.json();
-    const results = await Promise.allSettled(
-      cats.map(c =>
-        fetch(`${API_URL}/services/category/${c.slug}`, { next: { revalidate: 60 } }).then(r => r.ok ? r.json() : null)
-      )
-    );
-    const services: FooterService[] = [];
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i];
-      if (r.status === 'fulfilled' && r.value?.services) {
-        const catSlug = cats[i].slug;
-        for (const svc of r.value.services) {
-          services.push({ title: svc.title || svc.service_name, slug: svc.slug, categorySlug: catSlug });
-        }
-      }
-    }
-    return services;
-  } catch {
-    return [];
-  }
-}
-
 export default async function Footer({ categories = [] }: { categories?: CategoryItem[] }) {
-  const [contact, cms12, footerServices] = await Promise.all([getContact(), getCms(12), getFooterServices()]);
+  const [contact, cms12] = await Promise.all([getContact(), getCms(12)]);
   return (
     <footer className="relative w-full bg-gradient-to-r from-[#1A0B66] to-[#3D1052] pt-20 pb-10 text-white">
       {/* TOP WAVE DIVIDER */}
@@ -135,7 +102,7 @@ export default async function Footer({ categories = [] }: { categories?: Categor
             </p>
             <div className="mt-2 flex items-center gap-3">
               <a
-                href="https://facebook.com"
+                href="https://www.facebook.com/insighthealthservicesltd"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Facebook"
@@ -144,7 +111,7 @@ export default async function Footer({ categories = [] }: { categories?: Categor
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" /></svg>
               </a>
               <a
-                href="https://instagram.com"
+                href="https://www.instagram.com/insighthealthservicesltd?igsh=MWN5aDhxbTBrbjkwaA=="
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
@@ -153,13 +120,22 @@ export default async function Footer({ categories = [] }: { categories?: Categor
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" x2="17.51" y1="6.5" y2="6.5" /></svg>
               </a>
               <a
-                href="https://linkedin.com"
+                href="https://www.linkedin.com/company/insight-health-services/home/?viewAsMember=true"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="LinkedIn"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/70 transition-all hover:bg-[#1E227D] hover:text-white hover:border-[#1E227D]"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" /><rect width="4" height="12" x="2" y="9" /><circle cx="4" cy="4" r="2" /></svg>
+              </a>
+              <a
+                href="https://x.com/insighthealths"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="X"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/70 transition-all hover:bg-[#1E227D] hover:text-white hover:border-[#1E227D]"
+              >
+                <span className="font-display text-base font-bold" aria-hidden="true">X</span>
               </a>
             </div>
           </div>
@@ -281,13 +257,13 @@ export default async function Footer({ categories = [] }: { categories?: Categor
             Our Services
           </h5>
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 font-body text-xs text-white/50 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {[...footerServices].filter(s => s.title.length <= 28).reverse().slice(0, 24).map((svc, i) => (
+            {categories.map((cat) => (
               <Link
-                key={i}
-                href={svc.categorySlug === 'blood-tests' ? `/services/blood-tests#${svc.slug}` : `/services/${svc.categorySlug}/${svc.slug}`}
+                key={cat.id}
+                href={`/services/${cat.slug}`}
                 className="transition-colors hover:text-white"
               >
-                {svc.title}
+                {cat.name.replace(/\n/g, '').trim()}
               </Link>
             ))}
           </div>
@@ -295,7 +271,7 @@ export default async function Footer({ categories = [] }: { categories?: Categor
 
         {/* Bottom Bar: Legal */}
         <div className="mt-8 flex flex-col items-center justify-between gap-4 font-body text-xs text-white/50 md:flex-row">
-          <span>&copy; {new Date().getFullYear()} Insight Health Services. <a href="https://www.techsoftweb.com/" target="_blank" rel="noopener noreferrer" className="underline decoration-transparent">Web Design Company Kochi</a>.</span>
+          <span>&copy; {new Date().getFullYear()} Insight Health Services. All rights reserved.</span>
           <div className="flex gap-6">
             <Link href="#" className="transition-colors hover:text-white">Privacy Policy</Link>
             <Link href="#" className="transition-colors hover:text-white">Terms of Service</Link>

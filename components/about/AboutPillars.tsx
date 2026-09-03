@@ -103,7 +103,7 @@ export default function AboutPillars({
             Our Core Strengths
           </span>
           <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-[#2D2136] md:text-4xl">
-            We Offer High Quality Health Services
+            We Offer High-Quality Healthcare Services
           </h2>
         </div>
 

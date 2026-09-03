@@ -36,12 +36,15 @@
   --font-body: 'Inter', sans-serif;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 @layer base {
   /* Base styles and global font application */
   body {
     background: var(--background);
     color: var(--foreground);
-    /* Apply the clean, legible font-body globally */
     font-family: var(--font-body);
   }
 

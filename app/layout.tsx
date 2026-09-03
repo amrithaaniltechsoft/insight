@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Plus_Jakarta_Sans, Inter } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/global/Header";
@@ -20,10 +21,24 @@ const inter = Inter({
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: "Insight Health Services | Private Ultrasound & Physio",
-  description: "Premium private pregnancy scans, clinical diagnostics, and physiotherapy.",
-};
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+
+async function getSeoByPage(page: string) {
+  try {
+    const res = await fetch(`${API_URL}/seos/${page}`, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+export async function generateMetadata() {
+  const seo = await getSeoByPage('home');
+  return {
+    title: seo?.meta_title || "Insight Health Services | Private Ultrasound & Physio",
+    description: seo?.meta_description || "Premium private pregnancy scans, clinical diagnostics, and physiotherapy.",
+    keywords: seo?.meta_keywords || undefined,
+  };
+}
 
 interface SearchServiceData {
   title: string;
@@ -144,6 +159,16 @@ export default async function RootLayout({
         <FloatingContactIsland contact1={contact1} contact2={contact2} />
         <CookieConsent />
       </body>
+      <Script
+        src="https://www.googletagmanager.com/gtag/js?id=G-4184PYHN29"
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-4184PYHN29');`}
+      </Script>
     </html>
   );
 }

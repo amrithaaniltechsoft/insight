@@ -1,5 +1,6 @@
 import ServiceDetailClient from "@/components/servicelistingpage/ServiceDetailClient";
 import { servicesData } from "@/components/servicelistingpage/servicesData";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 interface PageProps {
@@ -51,9 +52,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!result) return { title: "Service Details | Insight Health Services" };
 
   if (result.fromApi && result.service) {
+    const catName = result.category?.name ?? '';
+    const svc = result.service;
     return {
-      title: `${result.service.title} - Private ${result.category?.name ?? ''} | Insight Health Services Walsall`,
-      description: `${result.service.service_overview ?? result.service.title}. Price: ${result.service.price ?? 'POA'}. Book your private scan in Walsall today.`,
+      title: svc.meta_title || `${svc.title} - Private ${catName} | Insight Health Services Walsall`,
+      description: svc.meta_description || `${svc.service_overview ?? svc.title}. Price: ${svc.price ?? 'POA'}. Book your private scan in Walsall today.`,
+      keywords: svc.meta_keywords || undefined,
     };
   }
 
@@ -82,6 +86,11 @@ export function generateStaticParams() {
 
 export default async function ServiceDetailPage({ params }: PageProps) {
   const { slug, serviceSlug } = await params;
+
+  if (slug === "servical-screening" || (slug === "cervical-screening" && serviceSlug === "zxczxc")) {
+    redirect("/services/cervical-screening/cervical-screening");
+  }
+
   const result = await getServiceDetail(slug, serviceSlug);
 
   return (

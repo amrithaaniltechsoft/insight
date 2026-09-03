@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -12,12 +12,16 @@ import Button from "@/components/ui/Button";
 import GoldenDragonWave from "@/components/home/GoldenDragonWave";
 import ServiceSearchBar from "@/components/ui/ServiceSearchBar";
 
+import { servicesData } from "@/components/servicelistingpage/servicesData";
+
 // Shape from the API (mirrors ServiceController@getPublicServicesBySlug)
 export interface BloodTest {
   id: number;
   slug: string;
   title: string;
   service_name: string;     // sub-category / group name
+  code: string | null;
+  tube: string | null;
   service_overview: string | null;
   price: string | null;
   appointment: string | null;
@@ -59,11 +63,34 @@ interface BloodTestsClientProps {
 }
 
 export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
+  const fallbackTests: BloodTest[] = (servicesData["blood-tests"]?.scans || []).map((s, idx) => ({
+    id: idx + 1,
+    slug: s.slug,
+    title: s.title,
+    service_name: "General Health",
+    code: null,
+    tube: null,
+    service_overview: s.description,
+    price: s.price,
+    appointment: s.duration,
+    description1: s.description,
+    package_include: s.inclusions ? s.inclusions.join("\n") : null,
+    turn_around_time: "24-48 Hours",
+    image: null,
+    category_slug: "blood-tests",
+  }));
+
+  const activeTests = tests && tests.length > 0 ? tests : fallbackTests;
+
   // Group tests by service_name (sub-category)
-  const grouped = tests.reduce<Record<string, BloodTest[]>>((acc, t) => {
-    const key = t.service_name;
+  const grouped = activeTests.reduce<Record<string, BloodTest[]>>((acc, t) => {
+    const key = t.service_name || "General Health";
     if (!acc[key]) acc[key] = [];
-    acc[key].push(t);
+    acc[key].push({
+      ...t,
+      title: t.title || t.service_name || "Blood Test",
+      service_name: key,
+    });
     return acc;
   }, {});
 
@@ -81,6 +108,7 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedService, setSelectedService] = useState<{ slug: string; title: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isCategoryNavigationActive, setIsCategoryNavigationActive] = useState(false);
 
   const searchCategories = [
     { slug: "all", title: "All Tests" },
@@ -90,19 +118,53 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
     })),
   ];
 
-  const allTestsFlat = tests.map((t) => ({
+  const allTestsFlat = activeTests.map((t) => ({
     slug: t.slug,
-    title: t.title,
-    category: t.service_name,
+    title: t.title || t.service_name || "Blood Test",
+    category: t.service_name || "General Health",
   }));
 
   const filteredServices = allTestsFlat.filter((s) => {
     const catMatch =
       selectedCategory === "all" ||
       s.category.toLowerCase().replace(/ & /g, "-").replace(/ /g, "-") === selectedCategory;
-    const termMatch = s.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const isSelectedMatch = Boolean(selectedService && searchTerm.trim() === selectedService.title.trim());
+    const termMatch =
+      isCategoryNavigationActive ||
+      !searchTerm.trim() ||
+      isSelectedMatch ||
+      s.title.toLowerCase().includes(searchTerm.toLowerCase());
     return catMatch && termMatch;
   });
+
+  useEffect(() => {
+    const syncWithHash = () => {
+      const hash = window.location.hash.slice(1);
+      if (!hash) return;
+
+      const isCategory = categoryNames.some(
+        (name) => name.toLowerCase().replace(/ & /g, "-").replace(/ /g, "-") === hash
+      );
+      const isTest = tests.some((test) => test.slug === hash);
+
+      if (isCategory || isTest) {
+        setSelectedCategory(isCategory ? hash : "all");
+        setSelectedService(null);
+        setIsCategoryNavigationActive(true);
+      }
+    };
+
+    syncWithHash();
+    window.addEventListener("hashchange", syncWithHash);
+    return () => window.removeEventListener("hashchange", syncWithHash);
+  }, [categoryNames, tests]);
+
+  useEffect(() => {
+    if (selectedCategory === "all") return;
+
+    const categoryElement = document.getElementById(selectedCategory);
+    categoryElement?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedCategory]);
 
   const handleSearch = () => {
     if (selectedService) {
@@ -128,11 +190,17 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
   // Button is active when a specific category is chosen OR the user has typed something
   const canSearch = searchTerm.trim().length > 0 || selectedCategory !== "all";
 
+  const handleCategoryNavigation = (categorySlug: string) => {
+    setSelectedCategory(categorySlug);
+    setSelectedService(null);
+    setIsCategoryNavigationActive(true);
+  };
+
   return (
-    <main className="w-full bg-[#FCFAFD] overflow-hidden">
+    <main className="w-full bg-[#FCFAFD]">
 
       {/* ── HERO ───────────────────────────────────────── */}
-      <section className="relative overflow-visible bg-gradient-to-br from-[#1E227D] to-[#F000E2] py-20 text-white lg:py-28">
+      <section className="relative z-10 overflow-visible bg-gradient-to-br from-[#1E227D] to-[#F000E2] py-20 text-white lg:py-28">
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <div className="absolute -left-32 top-0 h-[30rem] w-[30rem] rounded-full bg-white/5" />
           <div className="absolute bottom-0 right-0 h-[25rem] w-[35rem] rounded-tl-full bg-white/5" />
@@ -158,7 +226,7 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
           </div>
 
           {/* SEARCH WIDGET */}
-          <div className="relative z-50 w-full max-w-xl">
+          <div className="relative z-[500] w-full max-w-xl">
             <ServiceSearchBar
               categories={searchCategories}
               selectedCategory={selectedCategory}
@@ -171,11 +239,16 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
               onSearchTermChange={(val) => {
                 setSearchTerm(val);
                 setSelectedService(null);
+                setIsCategoryNavigationActive(false);
               }}
               selectedService={selectedService}
               onServiceSelect={(svc) => {
                 setSelectedService(svc);
                 setSearchTerm(svc.title);
+                setTimeout(() => {
+                  const el = document.getElementById(svc.slug);
+                  if (el) el.scrollIntoView({ behavior: "smooth" });
+                }, 50);
               }}
               filteredServices={filteredServices}
               onSearch={handleSearch}
@@ -186,12 +259,11 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
       </section>
 
       {/* ── QUICK NAV ──────────────────────────────────── */}
-      <section
-        className="relative w-full bg-[#E7BEF8] pt-16 pb-32"
+      <section className="relative z-0 w-full bg-[#E7BEF8] pt-16 pb-32"
         style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 50' width='50' height='50'%3e%3cpath d='M25 20 V30 M20 25 H30' stroke='rgba(181,102,214,0.18)' stroke-width='1.5'/%3e%3c/svg%3e")` }}
       >
         {/* Wave top */}
-        <div className="absolute left-0 top-0 w-full -translate-y-[99%] rotate-180 leading-[0]">
+        <div className="absolute left-0 top-0 w-full -translate-y-[99%] rotate-180 leading-[0] pointer-events-none z-0">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"
             className="relative block h-[40px] w-full max-w-none lg:h-[70px]">
             <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" fill="#E7BEF8" />
@@ -224,6 +296,15 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
                   >
                     <Link
                       href={`/services/blood-tests#${anchorId}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        handleCategoryNavigation(anchorId);
+                        if (window.location.hash === `#${anchorId}`) {
+                          document.getElementById(anchorId)?.scrollIntoView({ behavior: "smooth" });
+                        } else {
+                          window.history.pushState(null, "", `#${anchorId}`);
+                        }
+                      }}
                       className="group relative flex flex-col bg-white rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-lg transition-all border border-transparent hover:border-[#F000E2]/30 hover:bg-gradient-to-br hover:from-white hover:to-[#fdeffc] overflow-hidden h-full"
                     >
                       <GoldenDragonWave className="opacity-10 group-hover:opacity-20 transition-opacity duration-500" />
@@ -248,7 +329,7 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
       {/* ── ALL TESTS DIRECTORY ────────────────────────── */}
       <section className="relative w-full bg-[#FCFAFD] pt-20 pb-32">
         {/* Wave top */}
-        <div className="absolute left-0 top-0 z-10 w-full -translate-y-[99%] rotate-180 leading-[0]">
+        <div className="absolute left-0 top-0 z-10 w-full -translate-y-[99%] rotate-180 leading-[0] pointer-events-none">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"
             className="relative block h-[40px] w-full max-w-none lg:h-[70px]">
             <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" fill="#FCFAFD" />
@@ -265,7 +346,7 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
             </p>
           </div>
 
-          {tests.length === 0 ? (
+          {activeTests.length === 0 ? (
             <p className="text-center text-[#2D2136]/60 font-body py-16">
               No blood tests available at the moment. Please check back soon.
             </p>
@@ -279,7 +360,12 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
                 const groupTests = grouped[catName].filter((t) => {
                   const catSlug = catName.toLowerCase().replace(/ & /g, "-").replace(/ /g, "-");
                   const catMatch = selectedCategory === "all" || catSlug === selectedCategory;
-                  const termMatch = searchTerm.trim() === "" || t.title.toLowerCase().includes(searchTerm.toLowerCase());
+                  const isSelectedMatch = Boolean(selectedService && (t.slug === selectedService.slug || t.title.toLowerCase() === selectedService.title.toLowerCase()));
+                  const termMatch =
+                    isCategoryNavigationActive ||
+                    searchTerm.trim() === "" ||
+                    isSelectedMatch ||
+                    t.title.toLowerCase().includes(searchTerm.toLowerCase());
                   return catMatch && termMatch;
                 });
 
@@ -338,6 +424,22 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
                                 </div>
                               )}
 
+                              {/* Code & Tube */}
+                              {(test.code || test.tube) && (
+                                <div className="flex items-center gap-2 mb-4 sm:mb-6">
+                                  {test.code && (
+                                    <span className="font-body text-[9px] sm:text-[10px] font-bold tracking-widest uppercase bg-[#1E227D]/10 text-[#1E227D] py-1 px-2 rounded">
+                                      Code: {test.code}
+                                    </span>
+                                  )}
+                                  {test.tube && (
+                                    <span className="font-body text-[9px] sm:text-[10px] font-bold tracking-widest uppercase bg-[#F000E2]/10 text-[#F000E2] py-1 px-2 rounded">
+                                      Tube: {test.tube}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
                               {/* Description (from backend description1 field) */}
                               {test.description1 && (
                                 <div 
@@ -365,8 +467,10 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
                                 </div>
                               )}
 
-                              <Link
-                                href={`/contact?enquiry=${encodeURIComponent(test.title)}`}
+                              <a
+                                href="https://insight-health-services.book.app/"
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="mt-auto"
                               >
                                 <Button
@@ -378,7 +482,7 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
                                   BOOK <span className="hidden sm:inline">DIAGNOSTICS</span>
                                   <span className="inline sm:hidden">NOW</span>
                                 </Button>
-                              </Link>
+                              </a>
                             </div>
                           </div>
                         );

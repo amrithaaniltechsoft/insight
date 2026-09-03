@@ -3,11 +3,26 @@ import AboutNarrative from "@/components/about/AboutNarrative";
 import AboutPillars from "@/components/about/AboutPillars";
 import AboutDirectory from "@/components/about/AboutDirectory";
 import AboutWhyChooseUs from "@/components/about/AboutWhyChooseUs";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "About Us | Insight Health Services Walsall",
-  description: "CQC regulated private healthcare clinic in Walsall. Expert diagnostics, physical therapy, and phlebotomy services.",
-};
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+
+async function getSeoByPage(page: string) {
+  try {
+    const res = await fetch(`${API_URL}/seos/${page}`, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const seo = await getSeoByPage('About');
+  return {
+    title: seo?.meta_title || "About Us | Insight Health Services Walsall",
+    description: seo?.meta_description || "CQC regulated private healthcare clinic in Walsall. Expert diagnostics, physical therapy, and phlebotomy services.",
+    keywords: seo?.meta_keywords || undefined,
+  };
+}
 
 export interface CmsItem {
   id: number;
