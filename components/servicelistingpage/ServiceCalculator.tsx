@@ -59,7 +59,11 @@ export default function ServiceCalculator({ slug, title, subtitle, services = []
   useEffect(() => {
     if (slug !== "pregnancy-scans") return;
     let cancelled = false;
-    fetch(`/api/assessment?category=${slug}`)
+    // Fetched from the Laravel API rather than a Next.js route: the database is
+    // on the Laravel host, which a Vercel function cannot connect to.
+    const API_URL =
+      process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+    fetch(`${API_URL}/assessment?category=${slug}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data || !Array.isArray(data.recommendations)) return;

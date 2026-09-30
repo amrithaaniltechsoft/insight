@@ -223,6 +223,7 @@ async function fetchCmsList(ids: number[]): Promise<CmsItem[]> {
 }
 
 export default async function Home() {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
   const [services, aboutCms, categories, pregnancyDiagnostics, bloodTestPkgs, cmsFeatures, contactData, searchServices] = await Promise.all([
     getServices(),
     fetchCms(11),
@@ -230,7 +231,7 @@ export default async function Home() {
     getPregnancyDiagnostics(),
     getBloodTestPackages(),
     fetchCmsList([4, 5, 6]),
-    fetch('http://127.0.0.1:8000/api/contact', { cache: 'no-store' }).then(r => r.ok ? r.json() : { contact2: '07777 138 166' }).catch(() => ({ contact2: '07777 138 166' })),
+    fetch(`${API_URL}/contact`, { cache: 'no-store' }).then(r => r.ok ? r.json() : { contact2: '07777 138 166' }).catch(() => ({ contact2: '07777 138 166' })),
     getSearchServices(),
   ]);
 

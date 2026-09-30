@@ -460,8 +460,13 @@ export default function BookAppointmentWizard() {
         ? localStorage.getItem("user_email") || ""
         : "";
 
+    // Sent to the Laravel API rather than a Next.js route. The database is on
+    // the Laravel host, where DB_HOST is 127.0.0.1, so a Vercel function cannot
+    // open a connection to it at all.
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+
     try {
-      const res = await fetch("/api/customers", {
+      const res = await fetch(`${API_URL}/bookings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

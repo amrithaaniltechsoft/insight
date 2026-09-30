@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 export default function TestPage() {
     const [message, setMessage] = useState("Loading...");
 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+
     useEffect(() => {
-        fetch("http://127.0.0.1:8000/api/test")
+        fetch(`${API_URL}/test`)
             .then((res) => res.json())
             .then((data) => setMessage(data.message))
             .catch((err) => {

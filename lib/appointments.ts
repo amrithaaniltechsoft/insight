@@ -2,7 +2,7 @@ import { servicesData } from "@/components/servicelistingpage/servicesData";
 
 /**
  * Client helper for reading a customer's appointments from the `appointments`
- * table via `app/api/appointments`.
+ * table via the Laravel API's `GET /bookings`.
  *
  * The `services` table has no slug column, so the "book again" link is resolved
  * here instead: `categories.slug` is the key into `servicesData`, and the scan's
@@ -104,7 +104,11 @@ export async function fetchAppointments(
   const query = new URLSearchParams({ customer_email: customerEmail });
   if (patientId) query.set("patient_id", patientId);
 
-  const response = await fetch(`/api/appointments?${query.toString()}`, {
+  // The Laravel API rather than a Next.js route: the database is on the Laravel
+  // host, where DB_HOST is 127.0.0.1, so a Vercel function cannot reach it.
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+
+  const response = await fetch(`${API_URL}/bookings?${query.toString()}`, {
     cache: "no-store",
   });
 
