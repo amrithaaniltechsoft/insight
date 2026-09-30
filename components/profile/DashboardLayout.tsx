@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { User, CalendarDays, FileText, Users, UserPlus, ChevronRight, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getPeople, getPersonFullName, Person } from "@/lib/people";
+import { fetchPeople, getPersonFullName, Person } from "@/lib/people";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -33,14 +33,26 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     setUserLastName(localStorage.getItem("user_last_name") || "");
   }, [router]);
 
+  // The people count comes from the `patients` table, so it matches what the
+  // profile page lists. Re-reads on sign-in and on the custom event the profile
+  // page fires after adding someone.
   useEffect(() => {
-    const loadPeople = () => setPeople(getPeople());
+    const loadPeople = () => {
+      const customerEmail = localStorage.getItem("user_email") || "";
+      if (!customerEmail) {
+        setPeople([]);
+        return;
+      }
+      fetchPeople(customerEmail)
+        .then(setPeople)
+        .catch(() => setPeople([]));
+    };
     loadPeople();
     window.addEventListener("auth-state-changed", loadPeople);
-    window.addEventListener("storage", loadPeople);
+    window.addEventListener("people-changed", loadPeople);
     return () => {
       window.removeEventListener("auth-state-changed", loadPeople);
-      window.removeEventListener("storage", loadPeople);
+      window.removeEventListener("people-changed", loadPeople);
     };
   }, []);
 

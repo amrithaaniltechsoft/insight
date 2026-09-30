@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Check, ChevronRight, CalendarDays, User, FileText, ClipboardList, Users, UserPlus, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { servicesData } from "@/components/servicelistingpage/servicesData";
-import { getPeople, savePeople, getPersonFullName, Person } from "@/lib/people";
+import { fetchPeople, savePerson, getPersonFullName, Person } from "@/lib/people";
 
 const steps = [
   { id: 1, title: "Date & Time", icon: CalendarDays },
@@ -24,7 +24,7 @@ export default function BookAppointmentWizard() {
 
   const [currentStep, setCurrentStep] = useState(1);
   const [numberOfMonths, setNumberOfMonths] = useState(2);
-  const [people, setPeople] = useState<Person[]>(() => getPeople());
+  const [people, setPeople] = useState<Person[]>([]);
   const [selectedPersonId, setSelectedPersonId] = useState<string>("self");
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [addPersonError, setAddPersonError] = useState("");
@@ -88,14 +88,14 @@ export default function BookAppointmentWizard() {
   }, []);
 
   const prefillFromProfile = () => {
-    const isSigned = localStorage.getItem("is_signed_in") === "true";
-    if (!isSigned) return;
-    const mobile = localStorage.getItem("user_mobile") || "";
-    const firstName = localStorage.getItem("user_first_name") || "";
-    const lastName = localStorage.getItem("user_last_name") || "";
-    const gender = localStorage.getItem("user_gender") || "";
-    const dobStr = localStorage.getItem("user_dob") || "";
+    // Every field is replaced, never kept from the previous value. Switching
+    // from a family member back to "My Self" would otherwise leave that person's
+    // name, date of birth and address in the form. A missing localStorage entry
+    // means the value is genuinely unknown, so it clears rather than carrying
+    // over whatever was there.
+    const read = (key: string) => localStorage.getItem(key) || "";
 
+    const dobStr = read("user_dob");
     let dobYear = "";
     let dobMonth = "";
     let dobDay = "";
@@ -108,22 +108,24 @@ export default function BookAppointmentWizard() {
 
     setFormData((prev) => ({
       ...prev,
-      title: localStorage.getItem("user_title") || prev.title,
-      gender: gender || prev.gender,
-      firstName: firstName || prev.firstName,
-      lastName: lastName || prev.lastName,
-      email: localStorage.getItem("user_email") || prev.email,
-      mobile: mobile || prev.mobile,
-      dobYear: dobYear || prev.dobYear,
-      dobMonth: dobMonth || prev.dobMonth,
-      dobDay: dobDay || prev.dobDay,
-      address1: localStorage.getItem("user_address1") || prev.address1,
-      address2: localStorage.getItem("user_address2") || prev.address2,
-      suburb: localStorage.getItem("user_suburb") || prev.suburb,
-      city: localStorage.getItem("user_city") || prev.city,
-      state: localStorage.getItem("user_state") || prev.state,
-      zipCode: localStorage.getItem("user_zip") || prev.zipCode,
-      country: localStorage.getItem("user_country") || prev.country,
+      title: read("user_title"),
+      gender: read("user_gender"),
+      firstName: read("user_first_name"),
+      lastName: read("user_last_name"),
+      email: read("user_email"),
+      mobile: read("user_mobile"),
+      dobYear,
+      dobMonth,
+      dobDay,
+      // `customers` keeps these in separate columns, so each one is read from
+      // its own key and lands in the matching field.
+      address1: read("user_address1"),
+      address2: read("user_address2"),
+      suburb: read("user_suburb"),
+      city: read("user_city"),
+      state: read("user_state"),
+      zipCode: read("user_zip"),
+      country: read("user_country"),
     }));
   };
 
@@ -133,9 +135,36 @@ export default function BookAppointmentWizard() {
     prefillFromProfile();
   }, [currentStep]);
 
+  // The person chips come from the `patients` table, so a signed-in customer
+  // sees the same people on every device. Guests have no customer record yet,
+  // so the list stays empty and they book for themselves.
+  useEffect(() => {
+    if (localStorage.getItem("is_signed_in") !== "true") return;
+
+    const customerEmail = localStorage.getItem("user_email") || "";
+    if (!customerEmail) return;
+
+    let cancelled = false;
+    fetchPeople(customerEmail)
+      .then((loaded) => {
+        if (!cancelled) setPeople(loaded);
+      })
+      .catch(() => {
+        // A failed lookup should not block booking; the customer can still book
+        // for themselves or add a person inline.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleSelectPerson = (personId: string) => {
     setSelectedPersonId(personId);
     if (personId === "self") {
+      // The customer's own profile keeps each address part separately, so City
+      // and Post Code are filled in individually and stay required.
+      setAddressOnFile(false);
       prefillFromProfile();
       return;
     }
@@ -143,6 +172,17 @@ export default function BookAppointmentWizard() {
     if (!person) return;
     prefillFromPerson(person);
   };
+
+  /**
+   * `patients.address` is a single column, so the seven address fields are packed
+   * into it. They are now stored field-separated and come back individually, so
+   * this is only true for addresses written before that format existed: those
+   * have ", " between their parts with the empty ones dropped, and the city and
+   * postcode cannot be told apart. In that case City and Post Code are not
+   * required, because the address is already on file. Set false as soon as the
+   * user touches any address field, when they are entering one from scratch.
+   */
+  const [addressOnFile, setAddressOnFile] = useState(false);
 
   const prefillFromPerson = (person: Person) => {
     let dobYear = "";
@@ -154,6 +194,21 @@ export default function BookAppointmentWizard() {
       dobMonth = parts[1] ? String(parseInt(parts[1], 10)) : "";
       dobDay = parts[2] ? String(parseInt(parts[2], 10)) : "";
     }
+    const savedAddress = (person.address || "").trim();
+    // Legacy addresses have no recoverable line boundaries, so they fall back to
+    // a single Line 1 and City / Post Code stay optional.
+    const parts = person.addressIsSplit
+      ? person.addressParts
+      : {
+          address1: savedAddress,
+          address2: "",
+          suburb: "",
+          city: "",
+          state: "",
+          zipCode: "",
+          country: "",
+        };
+
     setFormData((prev) => ({
       ...prev,
       title: person.title || "",
@@ -165,29 +220,66 @@ export default function BookAppointmentWizard() {
       dobDay: dobDay,
       email: person.email || "",
       mobile: person.mobile || "",
-      address1: person.address1 || "",
-      address2: person.address2 || "",
-      suburb: person.suburb || "",
-      city: person.city || "",
-      state: person.state || "",
-      zipCode: person.zipCode || "",
-      country: person.country || "",
+      address1: parts.address1,
+      address2: parts.address2,
+      suburb: parts.suburb,
+      city: parts.city,
+      state: parts.state,
+      zipCode: parts.zipCode,
+      country: parts.country,
     }));
+    setAddressOnFile(!person.addressIsSplit && savedAddress.length > 0);
   };
+
+  const ADDRESS_FIELDS = [
+    "address1",
+    "address2",
+    "suburb",
+    "city",
+    "state",
+    "zipCode",
+    "country",
+  ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    const val = type === "checkbox" ? (e.target as HTMLInputElement).checked : value;
+    let val = type === "checkbox" ? (e.target as HTMLInputElement).checked : value;
+    // Mobile accepts digits only — drop any other characters as they are typed.
+    if (name === "mobile") {
+      val = String(val).replace(/\D/g, "").slice(0, 20);
+    }
+    // Editing any address field means the user is entering one by hand, so City
+    // and Post Code become required again.
+    if (ADDRESS_FIELDS.includes(name)) {
+      setAddressOnFile(false);
+    }
     setFormData((prev) => ({ ...prev, [name]: val }));
+    setSaveError("");
+    // Clear error when field is edited
+    if (step2Errors[name] || name === "dobMonth" || name === "dobDay" || name === "dobYear") {
+      setStep2Errors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        if (name === "dobMonth" || name === "dobDay" || name === "dobYear") {
+          delete newErrors.dob;
+        }
+        return newErrors;
+      });
+    }
   };
 
   const handleNewPersonChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setNewPersonForm((prev) => ({ ...prev, [name]: value }));
+    let val = value;
+    // Mobile accepts digits only — drop any other characters as they are typed.
+    if (name === "mobile") {
+      val = value.replace(/\D/g, "").slice(0, 20);
+    }
+    setNewPersonForm((prev) => ({ ...prev, [name]: val }));
     setAddPersonError("");
   };
 
-  const handleAddPerson = () => {
+  const handleAddPerson = async () => {
     if (!newPersonForm.firstName.trim() || !newPersonForm.lastName.trim()) {
       setAddPersonError("First Name and Last Name are required.");
       return;
@@ -214,28 +306,45 @@ export default function BookAppointmentWizard() {
     }
 
     const formattedDob = `${newPersonForm.dobYear}-${newPersonForm.dobMonth.padStart(2, "0")}-${newPersonForm.dobDay.padStart(2, "0")}`;
-    const newPerson: Person = {
-      id: `patient-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-      title: newPersonForm.title,
-      firstName: newPersonForm.firstName.trim(),
-      lastName: newPersonForm.lastName.trim(),
-      gender: newPersonForm.gender,
-      dob: formattedDob,
-      email: newPersonForm.email.trim(),
-      mobile: newPersonForm.mobile.trim(),
-      address1: newPersonForm.address1.trim(),
-      address2: newPersonForm.address2.trim(),
-      suburb: newPersonForm.suburb.trim(),
-      city: newPersonForm.city.trim(),
-      state: newPersonForm.state.trim(),
-      zipCode: newPersonForm.zipCode.trim(),
-      country: newPersonForm.country.trim(),
-      relationship: newPersonForm.relationship,
-    };
 
-    const updated = [...people, newPerson];
-    setPeople(updated);
-    savePeople(updated);
+    const customerEmail = localStorage.getItem("user_email") || "";
+    if (!customerEmail) {
+      setAddPersonError("Please sign in before adding someone to book for.");
+      return;
+    }
+
+    let newPerson: Person;
+    try {
+      newPerson = await savePerson({
+        customerEmail,
+        firstName: newPersonForm.firstName.trim(),
+        lastName: newPersonForm.lastName.trim(),
+        gender: newPersonForm.gender,
+        dob: formattedDob,
+        email: newPersonForm.email.trim(),
+        mobile: newPersonForm.mobile.trim(),
+        // The parts are sent individually; the API packs them into the single
+        // `patients.address` column field by field.
+        address: {
+          address1: newPersonForm.address1.trim(),
+          address2: newPersonForm.address2.trim(),
+          suburb: newPersonForm.suburb.trim(),
+          city: newPersonForm.city.trim(),
+          state: newPersonForm.state.trim(),
+          zipCode: newPersonForm.zipCode.trim(),
+          country: newPersonForm.country.trim(),
+        },
+        title: newPersonForm.title.trim(),
+        relationship: newPersonForm.relationship,
+      });
+    } catch (error) {
+      setAddPersonError(
+        error instanceof Error ? error.message : "Failed to add this person."
+      );
+      return;
+    }
+
+    setPeople((prev) => [...prev, newPerson]);
     setShowAddPerson(false);
     setAddPersonError("");
     setNewPersonForm({
@@ -281,7 +390,156 @@ export default function BookAppointmentWizard() {
     return { serviceName: resolvedServiceName, category: resolvedCategory, price: resolvedPrice };
   };
 
-  const handleNext = () => {
+  const [step2Errors, setStep2Errors] = useState<{ [key: string]: string }>({});
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  const validateStep2 = () => {
+    const errors: { [key: string]: string } = {};
+
+    if (!formData.gender) {
+      errors.gender = "Gender is required";
+    }
+    if (!formData.firstName.trim()) {
+      errors.firstName = "First Name is required";
+    }
+    if (!formData.lastName.trim()) {
+      errors.lastName = "Last Name is required";
+    }
+    // A relative or friend may not have their own email, but the customer's own
+    // booking does — it is the unique key their customer record is matched on.
+    const bookingForSelf = selectedPersonId === "self";
+    if (!formData.email.trim()) {
+      if (bookingForSelf) {
+        errors.email = "Email is required";
+      }
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = "Please enter a valid email address";
+    }
+    if (!formData.mobile.trim()) {
+      errors.mobile = "Mobile / Cell is required";
+    }
+    if (!formData.dobMonth || !formData.dobDay || !formData.dobYear) {
+      errors.dob = "Date of Birth is required";
+    }
+    if (!formData.address1.trim()) {
+      errors.address1 = "Address Line 1 is required";
+    }
+    // Only required when the address is being typed from scratch. An address
+    // pre-filled from a saved person normally arrives with its city and postcode
+    // already filled in; the exception is a record saved before the address
+    // fields were stored separately, which can only be shown as one line.
+    if (!addressOnFile) {
+      if (!formData.city.trim()) {
+        errors.city = "City is required";
+      }
+      if (!formData.zipCode.trim()) {
+        errors.zipCode = "Zip Code is required";
+      }
+    }
+
+    setStep2Errors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Sends the details for whoever this appointment is for. A self-booking is
+  // upserted into customers (keyed on its unique email) and into patients; a
+  // booking for someone else only ever creates or updates a patients row.
+  const saveBookingDetails = async (): Promise<boolean> => {
+    setSavingCustomer(true);
+    setSaveError("");
+
+    const pad = (value: string) => value.padStart(2, "0");
+
+    // Booking for myself means the person paying is the patient, so the details
+    // belong in customers as well. Booking for a relative or friend means they
+    // are only a patient — a family member must never become a customer record.
+    const bookingFor = selectedPersonId === "self" ? "self" : "other";
+    const bookedByEmail =
+      localStorage.getItem("is_signed_in") === "true"
+        ? localStorage.getItem("user_email") || ""
+        : "";
+
+    try {
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          booking_for: bookingFor,
+          booked_by_email: bookedByEmail,
+          appointment_date: formData.date,
+          start_time: formData.time,
+          service_name: resolveService().serviceName,
+          notes: formData.notes.trim() || null,
+          email: formData.email.trim(),
+          first_name: formData.firstName.trim(),
+          last_name: formData.lastName.trim(),
+          gender: formData.gender,
+          dob: `${formData.dobYear}-${pad(formData.dobMonth)}-${pad(formData.dobDay)}`,
+          title: formData.title || null,
+          phone: formData.mobile.trim() || null,
+          address_line_1: formData.address1.trim() || null,
+          address_line_2: formData.address2.trim() || null,
+          suburb: formData.suburb.trim() || null,
+          city: formData.city.trim() || null,
+          state: formData.state.trim() || null,
+          zip_code: formData.zipCode.trim() || null,
+          country: formData.country.trim() || null,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setSaveError(data.message || "We could not save your details. Please try again.");
+        return false;
+      }
+
+      // Keep the signed-in profile in localStorage in sync with what we saved,
+      // so the header and prefill on later steps show the same values. Only a
+      // self-booking may do this — writing a relative's details here would
+      // overwrite the signed-in customer's own profile.
+      if (bookingFor === "self") {
+        localStorage.setItem("user_title", formData.title);
+        localStorage.setItem("user_gender", formData.gender);
+        localStorage.setItem("user_first_name", formData.firstName.trim());
+        localStorage.setItem("user_last_name", formData.lastName.trim());
+        localStorage.setItem("user_email", formData.email.trim());
+        localStorage.setItem("user_mobile", formData.mobile.trim());
+        localStorage.setItem("user_dob", `${formData.dobYear}-${pad(formData.dobMonth)}-${pad(formData.dobDay)}`);
+        localStorage.setItem("user_address1", formData.address1.trim());
+        localStorage.setItem("user_address2", formData.address2.trim());
+        localStorage.setItem("user_suburb", formData.suburb.trim());
+        localStorage.setItem("user_city", formData.city.trim());
+        localStorage.setItem("user_state", formData.state.trim());
+        localStorage.setItem("user_zip", formData.zipCode.trim());
+        localStorage.setItem("user_country", formData.country.trim());
+        window.dispatchEvent(new Event("storage"));
+      }
+
+      return true;
+    } catch {
+      setSaveError("We could not reach the server to save your details. Please try again.");
+      return false;
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
+  const handleNext = async () => {
+    if (currentStep === 2) {
+      if (!validateStep2()) {
+        window.scrollTo(0, 0);
+        return;
+      }
+
+      const saved = await saveBookingDetails();
+      if (!saved) {
+        window.scrollTo(0, 0);
+        return;
+      }
+    }
+
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
       window.scrollTo(0, 0);
@@ -495,6 +753,12 @@ export default function BookAppointmentWizard() {
                   <p className="font-body text-sm text-zinc-500">Who is this appointment for? We&rsquo;ll pre-fill their details where possible.</p>
                 </div>
 
+                {saveError && (
+                  <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-body text-xs font-semibold text-red-700">
+                    {saveError}
+                  </div>
+                )}
+
                 {/* WHO IS THIS FOR */}
                 <div className="flex flex-col gap-3">
                   <label className="font-body text-xs font-bold text-[#2D2136]">Who is this appointment for? *</label>
@@ -638,75 +902,92 @@ export default function BookAppointmentWizard() {
                           name="mobile"
                           inputMode="numeric"
                           pattern="[0-9]*"
+                          maxLength={20}
+                          placeholder="Digits only"
                           value={newPersonForm.mobile}
                           onChange={handleNewPersonChange}
                           className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                         />
                       </div>
-                      <div className="flex flex-col gap-1.5 sm:col-span-2">
-                        <label className="font-body text-xs font-bold text-[#2D2136]">Address *</label>
+                      <div className="flex flex-col gap-1.5">
+                        <label htmlFor="newAddress1" className="font-body text-xs font-bold text-[#2D2136]">Address Line 1 *</label>
                         <input
+                          id="newAddress1"
                           type="text"
                           name="address1"
-                          placeholder="Address Line 1 *"
+                          placeholder="House number and street"
                           value={newPersonForm.address1}
                           onChange={handleNewPersonChange}
-                          className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] mb-1.5"
+                          className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                         />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label htmlFor="newAddress2" className="font-body text-xs font-bold text-[#2D2136]">Address Line 2</label>
                         <input
+                          id="newAddress2"
                           type="text"
                           name="address2"
-                          placeholder="Address Line 2 (Optional)"
+                          placeholder="Apartment, floor, building (optional)"
                           value={newPersonForm.address2}
                           onChange={handleNewPersonChange}
                           className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="font-body text-xs font-bold text-[#2D2136]">Suburb</label>
+                        <label htmlFor="newSuburb" className="font-body text-xs font-bold text-[#2D2136]">Suburb</label>
                         <input
+                          id="newSuburb"
                           type="text"
                           name="suburb"
+                          placeholder="Optional"
                           value={newPersonForm.suburb}
                           onChange={handleNewPersonChange}
                           className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="font-body text-xs font-bold text-[#2D2136]">City *</label>
+                        <label htmlFor="newCity" className="font-body text-xs font-bold text-[#2D2136]">City *</label>
                         <input
+                          id="newCity"
                           type="text"
                           name="city"
+                          placeholder="Town or city"
                           value={newPersonForm.city}
                           onChange={handleNewPersonChange}
                           className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="font-body text-xs font-bold text-[#2D2136]">State</label>
+                        <label htmlFor="newState" className="font-body text-xs font-bold text-[#2D2136]">State</label>
                         <input
+                          id="newState"
                           type="text"
                           name="state"
+                          placeholder="Optional"
                           value={newPersonForm.state}
                           onChange={handleNewPersonChange}
                           className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="font-body text-xs font-bold text-[#2D2136]">Zip / Post Code *</label>
+                        <label htmlFor="newZip" className="font-body text-xs font-bold text-[#2D2136]">Zip / Post Code *</label>
                         <input
+                          id="newZip"
                           type="text"
                           name="zipCode"
+                          placeholder="Postcode or ZIP"
                           value={newPersonForm.zipCode}
                           onChange={handleNewPersonChange}
                           className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                         />
                       </div>
-                      <div className="flex flex-col gap-1.5 sm:col-span-2">
-                        <label className="font-body text-xs font-bold text-[#2D2136]">Country</label>
+                      <div className="flex flex-col gap-1.5">
+                        <label htmlFor="newCountry" className="font-body text-xs font-bold text-[#2D2136]">Country</label>
                         <input
+                          id="newCountry"
                           type="text"
                           name="country"
+                          placeholder="Optional"
                           value={newPersonForm.country}
                           onChange={handleNewPersonChange}
                           className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
@@ -795,7 +1076,7 @@ export default function BookAppointmentWizard() {
                       name="gender"
                       value={formData.gender}
                       onChange={handleInputChange}
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
+                      className={`w-full rounded-xl border ${step2Errors.gender ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`}
                       required
                     >
                       <option value="">Select</option>
@@ -803,6 +1084,7 @@ export default function BookAppointmentWizard() {
                       <option value="Female">Female</option>
                       <option value="Other">Other</option>
                     </select>
+                    {step2Errors.gender && <p className="font-body text-xs text-red-500 mt-1">{step2Errors.gender}</p>}
                   </div>
 
                   {/* Name */}
@@ -813,9 +1095,10 @@ export default function BookAppointmentWizard() {
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleInputChange}
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
+                      className={`w-full rounded-xl border ${step2Errors.firstName ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`}
                       required
                     />
+                    {step2Errors.firstName && <p className="font-body text-xs text-red-500 mt-1">{step2Errors.firstName}</p>}
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="font-body text-xs font-bold text-[#2D2136]">Last Name *</label>
@@ -824,9 +1107,10 @@ export default function BookAppointmentWizard() {
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleInputChange}
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
+                      className={`w-full rounded-xl border ${step2Errors.lastName ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`}
                       required
                     />
+                    {step2Errors.lastName && <p className="font-body text-xs text-red-500 mt-1">{step2Errors.lastName}</p>}
                   </div>
 
                   {/* Contact */}
@@ -837,82 +1121,109 @@ export default function BookAppointmentWizard() {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
+                      className={`w-full rounded-xl border ${step2Errors.email ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`}
                       required
                     />
+                    {step2Errors.email && <p className="font-body text-xs text-red-500 mt-1">{step2Errors.email}</p>}
                   </div>
                   <div className="flex flex-col gap-2">
                     <label className="font-body text-xs font-bold text-[#2D2136]">Mobile / Cell *</label>
                     <input
                       type="tel"
                       name="mobile"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={20}
+                      placeholder="Digits only"
                       value={formData.mobile}
                       onChange={handleInputChange}
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
+                      className={`w-full rounded-xl border ${step2Errors.mobile ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`}
                       required
                     />
+                    {step2Errors.mobile && <p className="font-body text-xs text-red-500 mt-1">{step2Errors.mobile}</p>}
                   </div>
 
                   {/* DOB */}
                   <div className="flex flex-col gap-2 sm:col-span-2">
                     <label className="font-body text-xs font-bold text-[#2D2136]">Date of Birth *</label>
                     <div className="grid grid-cols-3 gap-3">
-                      <select name="dobMonth" value={formData.dobMonth} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white">
+                      <select name="dobMonth" value={formData.dobMonth} onChange={handleInputChange} className={`w-full rounded-xl border ${step2Errors.dob ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`}>
                         <option value="">Month</option>
                         {Array.from({ length: 12 }, (_, i) => (<option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>))}
                       </select>
-                      <select name="dobDay" value={formData.dobDay} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white">
+                      <select name="dobDay" value={formData.dobDay} onChange={handleInputChange} className={`w-full rounded-xl border ${step2Errors.dob ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`}>
                         <option value="">Day</option>
                         {Array.from({ length: 31 }, (_, i) => (<option key={i+1} value={i+1}>{i+1}</option>))}
                       </select>
-                      <select name="dobYear" value={formData.dobYear} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white">
+                      <select name="dobYear" value={formData.dobYear} onChange={handleInputChange} className={`w-full rounded-xl border ${step2Errors.dob ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`}>
                         <option value="">Year</option>
                         {Array.from({ length: 100 }, (_, i) => { const year = new Date().getFullYear() - i; return (<option key={year} value={year}>{year}</option>); })}
                       </select>
                     </div>
+                    {step2Errors.dob && <p className="font-body text-xs text-red-500 mt-1">{step2Errors.dob}</p>}
                   </div>
 
-                  {/* Address */}
-                  <div className="flex flex-col gap-2 sm:col-span-2">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">Address *</label>
+                  {/* Address — one field per column, each with its own label.
+                      Line 1 and Line 2 used to be stacked inside a single
+                      grid cell, which left Line 2 looking like a stray
+                      placeholder under an empty box. */}
+                  {addressOnFile && (
+                    <p className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 font-body text-xs text-amber-800">
+                      This person&rsquo;s address was saved before the address
+                      fields were stored separately, so it can only be shown as a
+                      single line — there is no way to tell which part is the
+                      city and which is the postcode. City and Post Code are
+                      therefore not required here. Type a full address in the
+                      fields below and it will be saved properly this time.
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="address1" className="font-body text-xs font-bold text-[#2D2136]">Address Line 1 *</label>
                     <input
+                      id="address1"
                       type="text"
                       name="address1"
-                      placeholder="Address Line 1"
+                      placeholder="House number and street"
                       value={formData.address1}
                       onChange={handleInputChange}
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white mb-2"
+                      className={`w-full rounded-xl border ${step2Errors.address1 ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`}
                       required
                     />
+                    {step2Errors.address1 && <p className="font-body text-xs text-red-500 mt-1">{step2Errors.address1}</p>}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="address2" className="font-body text-xs font-bold text-[#2D2136]">Address Line 2</label>
                     <input
+                      id="address2"
                       type="text"
                       name="address2"
-                      placeholder="Address Line 2 (Optional)"
+                      placeholder="Apartment, floor, building (optional)"
                       value={formData.address2}
                       onChange={handleInputChange}
                       className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
                     />
                   </div>
-                  
                   <div className="flex flex-col gap-2">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">Suburb</label>
-                    <input type="text" name="suburb" value={formData.suburb} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white" />
+                    <label htmlFor="suburb" className="font-body text-xs font-bold text-[#2D2136]">Suburb</label>
+                    <input id="suburb" type="text" name="suburb" placeholder="Optional" value={formData.suburb} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white" />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">City *</label>
-                    <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white" required />
+                    <label htmlFor="city" className="font-body text-xs font-bold text-[#2D2136]">City{addressOnFile ? "" : " *"}</label>
+                    <input id="city" type="text" name="city" placeholder={addressOnFile ? "Not needed" : "Town or city"} value={formData.city} onChange={handleInputChange} className={`w-full rounded-xl border ${step2Errors.city ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`} required={!addressOnFile} />
+                    {step2Errors.city && <p className="font-body text-xs text-red-500 mt-1">{step2Errors.city}</p>}
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">State</label>
-                    <input type="text" name="state" value={formData.state} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white" />
+                    <label htmlFor="state" className="font-body text-xs font-bold text-[#2D2136]">State</label>
+                    <input id="state" type="text" name="state" placeholder="Optional" value={formData.state} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white" />
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">Zip Code *</label>
-                    <input type="text" name="zipCode" value={formData.zipCode} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white" required />
+                    <label htmlFor="zipCode" className="font-body text-xs font-bold text-[#2D2136]">Zip / Post Code{addressOnFile ? "" : " *"}</label>
+                    <input id="zipCode" type="text" name="zipCode" placeholder={addressOnFile ? "Not needed" : "Postcode or ZIP"} value={formData.zipCode} onChange={handleInputChange} className={`w-full rounded-xl border ${step2Errors.zipCode ? 'border-red-500' : 'border-zinc-200'} bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white`} required={!addressOnFile} />
+                    {step2Errors.zipCode && <p className="font-body text-xs text-red-500 mt-1">{step2Errors.zipCode}</p>}
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">Country</label>
-                    <input type="text" name="country" value={formData.country} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white" />
+                    <label htmlFor="country" className="font-body text-xs font-bold text-[#2D2136]">Country</label>
+                    <input id="country" type="text" name="country" placeholder="Optional" value={formData.country} onChange={handleInputChange} className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm outline-none transition-colors focus:border-[#1E227D] focus:bg-white" />
                   </div>
                 </div>
                 )}
@@ -1092,13 +1403,14 @@ export default function BookAppointmentWizard() {
             onClick={handleNext}
             className="!px-8 !py-3 shadow-lg shadow-[#F000E2]/20"
             disabled={
+              savingCustomer ||
               (currentStep === 1 && (!formData.date || !formData.time)) ||
               (currentStep === 3 && !formData.agreeToTerms)
             }
             icon={currentStep < 4 ? <ChevronRight size={16} /> : undefined}
             iconPosition="left"
           >
-            {currentStep === 4 ? "Confirm Booking" : "Continue"}
+            {savingCustomer ? "Saving..." : currentStep === 4 ? "Confirm Booking" : "Continue"}
           </Button>
         </div>
       </div>

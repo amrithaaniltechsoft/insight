@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import { Calendar, Clock, Tag, Stethoscope, User } from "lucide-react";
 import DashboardLayout from "@/components/profile/DashboardLayout";
 import Button from "@/components/ui/Button";
+import {
+  fetchAppointments,
+  formatDate,
+  formatPrice,
+  formatTime,
+  resolveServiceSlug,
+} from "@/lib/appointments";
 
 interface Booking {
   id: string;
@@ -15,78 +22,64 @@ interface Booking {
   time: string;
   price: string;
   patientName?: string;
-  patientEmail?: string;
+  appointmentCode: string;
+  status: string;
+  paymentStatus: string;
 }
 
 export default function MyBookingsPage() {
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
+  // Appointments are read from the `appointments` table, which is written when
+  // the booking wizard reaches Continue. The previous localStorage read only
+  // ever saw bookings the user finished in that browser session.
   useEffect(() => {
-    // Standard default mock bookings to make layout look rich
-    const mockBookings: Booking[] = [
-      {
-        id: "mock-1",
-        serviceSlug: "early-reassurance-scan",
-        serviceName: "Early Reassurance Scan",
-        category: "Pregnancy Scans",
-        date: "2026-05-02",
-        time: "11:30 AM",
-        price: "£95.00",
-      },
-      {
-        id: "mock-2",
-        serviceSlug: "well-woman-blood-profile",
-        serviceName: "Well Woman Blood Profile",
-        category: "Blood Tests",
-        date: "2026-04-15",
-        time: "09:00 AM",
-        price: "£149.00",
-      },
-    ];
+    const customerEmail =
+      localStorage.getItem("is_signed_in") === "true"
+        ? localStorage.getItem("user_email") || ""
+        : "";
 
-    // Load any appointments booked on this session from localStorage
-    const savedBookingsRaw = localStorage.getItem("user_bookings");
-    let savedBookings: Booking[] = [];
-    if (savedBookingsRaw) {
+    let cancelled = false;
+    (async () => {
       try {
-        const parsed = JSON.parse(savedBookingsRaw);
-        savedBookings = parsed.map((b: any) => ({
-          id: b.id || Math.random().toString(36).substr(2, 9),
-          serviceSlug: b.serviceSlug || "general-consultation",
-          serviceName: b.serviceName || "General Consultation",
-          category: b.category || "Consultations",
-          date: b.date,
-          time: b.time,
-          price: b.price || "£95.00",
-          patientName: b.patientName || null,
-          patientEmail: b.patientEmail || null,
-        }));
-      } catch (e) {
-        console.error("Failed to parse user bookings:", e);
+        const appointments = customerEmail
+          ? await fetchAppointments(customerEmail)
+          : [];
+        if (cancelled) return;
+        setBookings(
+          appointments.map((appointment) => ({
+            id: String(appointment.id),
+            serviceSlug: resolveServiceSlug(appointment),
+            serviceName: appointment.service_name || "General Consultation",
+            category: appointment.category_name || "Consultations",
+            date: appointment.appointment_date,
+            time: formatTime(appointment.start_time),
+            price: formatPrice(appointment.service_price),
+            patientName: appointment.patient_name,
+            appointmentCode: appointment.appointment_code,
+            status: appointment.status,
+            paymentStatus: appointment.payment_status,
+          }))
+        );
+      } catch (loadError) {
+        if (cancelled) return;
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Failed to load your bookings."
+        );
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    }
+    })();
 
-    // Combine mock bookings and user bookings, removing duplicate IDs
-    const combined = [...savedBookings, ...mockBookings];
-    setBookings(combined);
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  const formatDate = (dateString: string) => {
-    if (!dateString) return "";
-    try {
-      const [year, month, day] = dateString.split("-").map(Number);
-      const localDate = new Date(year, month - 1, day);
-      return localDate.toLocaleDateString("en-GB", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
 
   const handleBookAgain = (slug: string) => {
     router.push(`/book-appointment?service=${slug}`);
@@ -104,8 +97,18 @@ export default function MyBookingsPage() {
           </p>
         </div>
 
-        {bookings.length === 0 ? (
-          <div className="border border-zinc-200 rounded-2xl p-12 text-center text-zinc-400 font-body text-sm">
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-body text-xs font-semibold text-red-700">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="border border-dashed border-zinc-300 rounded-2xl p-12 text-center text-zinc-400 font-body text-sm">
+            Loading your bookings&hellip;
+          </div>
+        ) : bookings.length === 0 ? (
+          <div className="border border-dashed border-zinc-300 rounded-2xl p-12 text-center text-zinc-400 font-body text-sm">
             No bookings found.
           </div>
         ) : (
@@ -127,7 +130,18 @@ export default function MyBookingsPage() {
                     <h3 className="font-display text-base font-bold text-[#1E227D] mt-1.5 leading-tight">
                       {booking.serviceName}
                     </h3>
-                    
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#1E227D]/5 text-[10px] font-bold tracking-wider text-[#1E227D]">
+                        {booking.appointmentCode}
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-[10px] font-bold tracking-wider text-emerald-700">
+                        {booking.status}
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 text-[10px] font-bold tracking-wider text-amber-700">
+                        {booking.paymentStatus}
+                      </span>
+                    </div>
+
                     {/* Icons Row */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 font-body text-xs text-zinc-600">
                       {booking.patientName && (

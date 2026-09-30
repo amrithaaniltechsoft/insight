@@ -3,10 +3,18 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Mail, Phone, MapPin, Users, Pencil, Trash2, Check, X, Calendar, Clock, Tag, Stethoscope, FileText, ArrowUpRight } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, Users, Pencil, Check, Calendar, Clock, Tag, Stethoscope, FileText, ArrowUpRight, Trash2 } from "lucide-react";
 import DashboardLayout from "@/components/profile/DashboardLayout";
 import Button from "@/components/ui/Button";
-import { getPeople, savePeople, getPersonFullName, Person } from "@/lib/people";
+import { deletePerson, fetchPeople, savePerson, getPersonFullName, Person } from "@/lib/people";
+import {
+  Appointment,
+  fetchAppointments,
+  formatDate,
+  formatPrice,
+  formatTime,
+  resolveServiceSlug,
+} from "@/lib/appointments";
 
 function DetailField({ label, value, className = "" }: { label: string; value: string; className?: string }) {
   return (
@@ -29,6 +37,9 @@ function splitDob(dob: string): { year: string; month: string; day: string } {
   };
 }
 
+/** Offered in the title dropdown. `patients.title` itself is free text. */
+const TITLE_OPTIONS = ["Mr", "Mrs", "Ms", "Miss", "Dr"];
+
 interface PersonBooking {
   id: string;
   serviceSlug: string;
@@ -37,63 +48,30 @@ interface PersonBooking {
   date: string;
   time: string;
   price: string;
+  appointmentCode: string;
+  status: string;
+  paymentStatus: string;
 }
 
-interface StoredBooking {
-  id?: string;
-  serviceSlug?: string;
-  serviceName?: string;
-  category?: string;
-  date?: string;
-  time?: string;
-  price?: string;
-  patientName?: string | null;
-  patientEmail?: string | null;
-}
-
-function loadBookingsForPerson(person: Person): PersonBooking[] {
-  try {
-    const raw = localStorage.getItem("user_bookings");
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as StoredBooking[];
-    if (!Array.isArray(parsed)) return [];
-    const fullName = getPersonFullName(person);
-    return parsed
-      .filter((b) =>
-        (person.email &&
-          b.patientEmail &&
-          b.patientEmail.trim().toLowerCase() === person.email.trim().toLowerCase()) ||
-        (fullName &&
-          b.patientName &&
-          b.patientName.trim().toLowerCase() === fullName.trim().toLowerCase())
-      )
-      .map((b) => ({
-        id: b.id || Math.random().toString(36).substr(2, 9),
-        serviceSlug: b.serviceSlug || "general-consultation",
-        serviceName: b.serviceName || "General Consultation",
-        category: b.category || "Consultations",
-        date: b.date || "",
-        time: b.time || "",
-        price: b.price || "£95.00",
-      }));
-  } catch {
-    return [];
-  }
-}
-
-function formatDate(dateString: string) {
-  if (!dateString) return "";
-  try {
-    const [year, month, day] = dateString.split("-").map(Number);
-    return new Date(year, month - 1, day).toLocaleDateString("en-GB", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return dateString;
-  }
+/**
+ * Bookings come from the `appointments` table, which is written when the wizard
+ * reaches Continue. The browser copy under `user_bookings` is only a cache of
+ * the final confirmation step, so it misses anything booked without finishing
+ * the wizard.
+ */
+function toPersonBooking(appointment: Appointment): PersonBooking {
+  return {
+    id: String(appointment.id),
+    serviceSlug: resolveServiceSlug(appointment),
+    serviceName: appointment.service_name || "General Consultation",
+    category: appointment.category_name || "Consultations",
+    date: appointment.appointment_date,
+    time: formatTime(appointment.start_time),
+    price: formatPrice(appointment.service_price),
+    appointmentCode: appointment.appointment_code,
+    status: appointment.status,
+    paymentStatus: appointment.payment_status,
+  };
 }
 
 export default function PersonDetailsPage() {
@@ -101,55 +79,78 @@ export default function PersonDetailsPage() {
   const personId = params?.personId || "";
   const router = useRouter();
 
-  const [person, setPerson] = useState<Person | null>(
-    () => getPeople().find((p) => p.id === personId) || null
-  );
-
-  const [bookings, setBookings] = useState<PersonBooking[]>(() => {
-    const found = getPeople().find((p) => p.id === personId);
-    return found ? loadBookingsForPerson(found) : [];
-  });
+  // The person is a `patients` row, so it is fetched rather than read from
+  // browser storage. A guest has no customer record, so there is nothing to
+  // show and the "not found" state handles it.
+  const [person, setPerson] = useState<Person | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState<PersonBooking[]>([]);
 
   const [isEditing, setIsEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const [form, setForm] = useState(() => {
-    const found = getPeople().find((p) => p.id === personId);
-    const dob = found ? splitDob(found.dob) : { year: "", month: "", day: "" };
-    return {
-      title: found?.title || "",
-      gender: found?.gender || "",
-      firstName: found?.firstName || "",
-      lastName: found?.lastName || "",
-      email: found?.email || "",
-      mobile: found?.mobile || "",
-      dobDay: dob.day,
-      dobMonth: dob.month,
-      dobYear: dob.year,
-      address1: found?.address1 || "",
-      address2: found?.address2 || "",
-      suburb: found?.suburb || "",
-      city: found?.city || "",
-      state: found?.state || "",
-      zipCode: found?.zipCode || "",
-      country: found?.country || "",
-      relationship: found?.relationship || "Family",
-    };
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Only removable while they have no bookings. Anyone with appointments keeps
+  // their record, so the action is absent rather than offered and then refused.
+  const canRemove = !isEditing && bookings.length === 0;
+
+  const [form, setForm] = useState({
+    title: "",
+    gender: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    mobile: "",
+    dobDay: "",
+    dobMonth: "",
+    dobYear: "",
+    address1: "",
+    address2: "",
+    suburb: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    country: "",
+    relationship: "Family",
   });
 
   useEffect(() => {
-    const syncPerson = () => {
-      const found = getPeople().find((p) => p.id === personId) || null;
-      setPerson(found);
-      setBookings(found ? loadBookingsForPerson(found) : []);
-    };
-    window.addEventListener("storage", syncPerson);
-    window.addEventListener("auth-state-changed", syncPerson);
+    const customerEmail =
+      localStorage.getItem("is_signed_in") === "true"
+        ? localStorage.getItem("user_email") || ""
+        : "";
+
+    let cancelled = false;
+    // State is set inside the async callback, not in the effect body, so this
+    // does not cascade a render on mount.
+    (async () => {
+      try {
+        const [people, appointments] = await Promise.all([
+          customerEmail ? fetchPeople(customerEmail) : Promise.resolve([]),
+          // The person id is the `patients.id`, so this is the same person's
+          // appointments and nothing else.
+          customerEmail
+            ? fetchAppointments(customerEmail, personId)
+            : Promise.resolve([]),
+        ]);
+        if (cancelled) return;
+        const found = people.find((p) => p.id === personId) || null;
+        setPerson(found);
+        setBookings(appointments.map(toPersonBooking));
+      } catch {
+        if (cancelled) return;
+        setError("Failed to load this person.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
     return () => {
-      window.removeEventListener("storage", syncPerson);
-      window.removeEventListener("auth-state-changed", syncPerson);
+      cancelled = true;
     };
   }, [personId]);
 
@@ -166,13 +167,20 @@ export default function PersonDetailsPage() {
       dobDay: dob.day,
       dobMonth: dob.month,
       dobYear: dob.year,
-      address1: person.address1,
-      address2: person.address2,
-      suburb: person.suburb,
-      city: person.city,
-      state: person.state,
-      zipCode: person.zipCode,
-      country: person.country,
+      // The address fields are packed into the one `patients.address` column and
+      // come back individually. Addresses saved before that format existed cannot
+      // be told apart, so they fill Address Line 1 and the rest start empty.
+      ...(person.addressIsSplit
+        ? person.addressParts
+        : {
+            address1: person.address,
+            address2: "",
+            suburb: "",
+            city: "",
+            state: "",
+            zipCode: "",
+            country: "",
+          }),
       relationship: person.relationship,
     });
     setIsEditing(true);
@@ -182,11 +190,15 @@ export default function PersonDetailsPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    // Mobile accepts digits only — drop any other characters as they are typed.
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === "mobile" ? value.replace(/\D/g, "").slice(0, 20) : value,
+    }));
     setError("");
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!person) return;
     if (!form.firstName.trim() || !form.lastName.trim()) {
       setError("First Name and Last Name are required.");
@@ -200,51 +212,133 @@ export default function PersonDetailsPage() {
       setError("Please specify the person's full Date of Birth.");
       return;
     }
+    // The address parts are stored field by field, so a new address needs a city
+    // and postcode to be readable back into the right inputs. An address the
+    // user has not touched is left as it was found — otherwise changing only a
+    // phone number on a record saved before the fields were separated would be
+    // blocked until the whole address was retyped.
+    const savedParts = person.addressIsSplit
+      ? person.addressParts
+      : {
+          address1: person.address,
+          address2: "",
+          suburb: "",
+          city: "",
+          state: "",
+          zipCode: "",
+          country: "",
+        };
+    const addressChanged =
+      form.address1.trim() !== savedParts.address1.trim() ||
+      form.address2.trim() !== savedParts.address2.trim() ||
+      form.suburb.trim() !== savedParts.suburb.trim() ||
+      form.city.trim() !== savedParts.city.trim() ||
+      form.state.trim() !== savedParts.state.trim() ||
+      form.zipCode.trim() !== savedParts.zipCode.trim() ||
+      form.country.trim() !== savedParts.country.trim();
+
+    if (addressChanged && !form.address1.trim()) {
+      setError("Address Line 1 is required.");
+      return;
+    }
+    if (addressChanged && (!form.city.trim() || !form.zipCode.trim())) {
+      setError("City and Zip / Post Code are required.");
+      return;
+    }
+
+    const customerEmail = localStorage.getItem("user_email") || "";
+    if (!customerEmail) {
+      setError("Please sign in before editing this person.");
+      return;
+    }
 
     const formattedDob = `${form.dobYear}-${form.dobMonth.padStart(2, "0")}-${form.dobDay.padStart(2, "0")}`;
-    const updatedPerson: Person = {
-      ...person,
-      title: form.title,
-      gender: form.gender,
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      email: form.email.trim(),
-      mobile: form.mobile.trim(),
-      dob: formattedDob,
-      address1: form.address1.trim(),
-      address2: form.address2.trim(),
-      suburb: form.suburb.trim(),
-      city: form.city.trim(),
-      state: form.state.trim(),
-      zipCode: form.zipCode.trim(),
-      country: form.country.trim(),
-      relationship: form.relationship,
-    };
 
-    const updated = getPeople().map((p) => (p.id === personId ? updatedPerson : p));
-    savePeople(updated);
-    window.dispatchEvent(new Event("storage"));
-    setPerson(updatedPerson);
-    setBookings(loadBookingsForPerson(updatedPerson));
-    setIsEditing(false);
-    setMessage("Person details updated successfully.");
+    setSaving(true);
+    try {
+      const updatedPerson = await savePerson({
+        customerEmail,
+        // Editing an existing patient, so the API updates that row rather than
+        // looking for a match to overwrite.
+        patientId: person.patientId,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        gender: form.gender,
+        dob: formattedDob,
+        email: form.email.trim(),
+        mobile: form.mobile.trim(),
+        // The parts are sent individually; the API packs them into the single
+        // `patients.address` column field by field.
+        address: {
+          address1: form.address1.trim(),
+          address2: form.address2.trim(),
+          suburb: form.suburb.trim(),
+          city: form.city.trim(),
+          state: form.state.trim(),
+          zipCode: form.zipCode.trim(),
+          country: form.country.trim(),
+        },
+        title: form.title.trim(),
+        relationship: form.relationship,
+      });
+
+      setPerson(updatedPerson);
+      // Bookings are keyed on the patient id, which an edit does not change, so
+      // the list already on screen stays correct.
+      setIsEditing(false);
+      setMessage("Person details updated successfully.");
+      window.dispatchEvent(new Event("people-changed"));
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Failed to update this person."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = () => {
-    const updated = getPeople().filter((p) => p.id !== personId);
-    savePeople(updated);
-    window.dispatchEvent(new Event("storage"));
-    router.push("/profile");
+  /**
+   * Removes this person and returns to the list. Only offered when they have no
+   * appointments, and the API refuses it either way — `appointments.patient_id`
+   * is ON DELETE CASCADE, so this is the only thing standing between a misclick
+   * and a deleted appointment history.
+   */
+  const handleDelete = async () => {
+    const customerEmail = localStorage.getItem("user_email") || "";
+    if (!customerEmail) {
+      setError("Please sign in before removing this person.");
+      return;
+    }
+
+    setDeleting(true);
+    setError("");
+    try {
+      await deletePerson(customerEmail, personId);
+      // Keeps the sidebar "My People" count in step with the deletion.
+      window.dispatchEvent(new Event("people-changed"));
+      router.push("/profile");
+    } catch (deleteError) {
+      setConfirmingDelete(false);
+      setError(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "Failed to remove this person."
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
     <DashboardLayout>
-      {!person && (
+      {!loading && !person && (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <Users size={28} className="text-zinc-300" />
           <h2 className="font-display text-lg font-bold text-[#2D2136]">Person not found</h2>
           <p className="font-body text-sm text-zinc-500">
-            This person may have been removed from your saved people.
+            This person is no longer on your account.
           </p>
           <Link
             href="/profile"
@@ -256,53 +350,80 @@ export default function PersonDetailsPage() {
         </div>
       )}
 
-      {person && (
-        <div className="flex flex-col gap-6">
-          {/* Header */}
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <Link
-              href="/profile"
-              className="inline-flex items-center gap-2 font-body text-sm font-bold text-[#1E227D] transition-colors hover:text-[#F000E2]"
-            >
-              <ArrowLeft size={16} />
-              Back to My Profile
-            </Link>
+      {loading && (
+        <div className="py-16 text-center">
+          <p className="font-body text-sm text-zinc-400">Loading&hellip;</p>
+        </div>
+      )}
 
-            {!isEditing && (
+      {!loading && person && (
+        <div className="flex flex-col gap-6">
+          {/* Header: back link on the left, every action grouped on the right.
+              Keeping this to two children stops the code, Edit and Remove from
+              being spread across the full width by justify-between. */}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Link
+                href="/profile"
+                className="inline-flex items-center gap-2 font-body text-sm font-bold text-[#1E227D] transition-colors hover:text-[#F000E2]"
+              >
+                <ArrowLeft size={16} />
+                Back to My Profile
+              </Link>
+
               <div className="flex items-center gap-2">
-                <button
-                  onClick={openEdit}
-                  className="flex items-center gap-1.5 rounded-xl border border-[#1E227D]/20 bg-[#1E227D]/5 px-4 py-2.5 font-body text-xs font-bold text-[#1E227D] transition-colors hover:bg-[#1E227D]/10 cursor-pointer"
-                >
-                  <Pencil size={14} />
-                  Edit
-                </button>
-                {confirmDelete ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setConfirmDelete(false)}
-                      className="flex items-center gap-1.5 rounded-xl border border-zinc-200 px-4 py-2.5 font-body text-xs font-bold text-zinc-600 transition-colors hover:bg-zinc-50 cursor-pointer"
-                    >
-                      <X size={14} />
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleDelete}
-                      className="flex items-center gap-1.5 rounded-xl bg-red-500 px-4 py-2.5 font-body text-xs font-bold text-white transition-colors hover:bg-red-600 cursor-pointer"
-                    >
-                      <Trash2 size={14} />
-                      Confirm Delete
-                    </button>
-                  </div>
-                ) : (
+                {person.patientCode && (
+                  <span className="rounded-lg bg-zinc-100 px-2.5 py-1.5 font-body text-[10px] font-bold tracking-wider text-zinc-500">
+                    {person.patientCode}
+                  </span>
+                )}
+
+                {!isEditing && (
                   <button
-                    onClick={() => setConfirmDelete(true)}
-                    className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 font-body text-xs font-bold text-red-500 transition-colors hover:bg-red-100 cursor-pointer"
+                    onClick={openEdit}
+                    className="flex items-center gap-1.5 rounded-xl border border-[#1E227D]/20 bg-[#1E227D]/5 px-4 py-2.5 font-body text-xs font-bold text-[#1E227D] transition-colors hover:bg-[#1E227D]/10 cursor-pointer"
                   >
-                    <Trash2 size={14} />
-                    Delete
+                    <Pencil size={14} />
+                    Edit
                   </button>
                 )}
+
+                {canRemove && !confirmingDelete && (
+                  <button
+                    onClick={() => setConfirmingDelete(true)}
+                    className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 font-body text-xs font-bold text-red-600 transition-colors hover:bg-red-100 cursor-pointer"
+                  >
+                    <Trash2 size={14} />
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Its own row, so the confirmation never has to share horizontal
+                space with the header actions. */}
+            {confirmingDelete && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                <p className="font-body text-xs font-bold text-red-700">
+                  Remove {person.firstName} {person.lastName}? This cannot be
+                  undone.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="rounded-lg bg-red-600 px-4 py-2 font-body text-xs font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-60 cursor-pointer"
+                  >
+                    {deleting ? "Removing…" : "Yes, remove"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmingDelete(false)}
+                    disabled={deleting}
+                    className="rounded-lg border border-red-200 bg-white px-4 py-2 font-body text-xs font-bold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-60 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -315,17 +436,6 @@ export default function PersonDetailsPage() {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl font-body text-xs">
               {error}
-            </div>
-          )}
-
-          {confirmDelete && (
-            <div className="border border-red-200 bg-red-50/50 rounded-2xl p-4 text-left">
-              <p className="font-display text-sm font-bold text-red-600">
-                Delete {getPersonFullName(person)}?
-              </p>
-              <p className="font-body text-xs text-zinc-500 mt-1">
-                This will permanently remove this person from your saved people. This action cannot be undone.
-              </p>
             </div>
           )}
 
@@ -347,11 +457,19 @@ export default function PersonDetailsPage() {
                       className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                     >
                       <option value="">Select</option>
-                      <option value="Mr">Mr</option>
-                      <option value="Mrs">Mrs</option>
-                      <option value="Ms">Ms</option>
-                      <option value="Miss">Miss</option>
-                      <option value="Dr">Dr</option>
+                      {/* `patients.title` holds free text, so a title set in the
+                          admin portal (Dr, Prof, …) may not be one of the
+                          options below. It has to stay selectable, otherwise the
+                          select would show blank and saving would wipe it. */}
+                      {form.title &&
+                        !TITLE_OPTIONS.includes(form.title) && (
+                          <option value={form.title}>{form.title}</option>
+                        )}
+                      {TITLE_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -410,70 +528,85 @@ export default function PersonDetailsPage() {
                       className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                     />
                   </div>
-                  <div className="flex flex-col gap-1.5 sm:col-span-2">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">Address</label>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="address1" className="font-body text-xs font-bold text-[#2D2136]">Address Line 1 *</label>
                     <input
+                      id="address1"
                       type="text"
                       name="address1"
-                      placeholder="Address Line 1"
+                      placeholder="e.g. 12 High Street"
                       value={form.address1}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] mb-1.5"
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                     />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="address2" className="font-body text-xs font-bold text-[#2D2136]">Address Line 2</label>
                     <input
+                      id="address2"
                       type="text"
                       name="address2"
-                      placeholder="Address Line 2 (Optional)"
+                      placeholder="Apartment, Flat or Unit (Optional)"
                       value={form.address2}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">Suburb</label>
+                    <label htmlFor="suburb" className="font-body text-xs font-bold text-[#2D2136]">Suburb</label>
                     <input
+                      id="suburb"
                       type="text"
                       name="suburb"
+                      placeholder="e.g. Blakenall (Optional)"
                       value={form.suburb}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">City</label>
+                    <label htmlFor="city" className="font-body text-xs font-bold text-[#2D2136]">City *</label>
                     <input
+                      id="city"
                       type="text"
                       name="city"
+                      placeholder="e.g. Walsall"
                       value={form.city}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">State</label>
+                    <label htmlFor="state" className="font-body text-xs font-bold text-[#2D2136]">State / County</label>
                     <input
+                      id="state"
                       type="text"
                       name="state"
+                      placeholder="e.g. West Midlands (Optional)"
                       value={form.state}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">Zip / Post Code</label>
+                    <label htmlFor="zipCode" className="font-body text-xs font-bold text-[#2D2136]">Zip / Post Code *</label>
                     <input
+                      id="zipCode"
                       type="text"
                       name="zipCode"
+                      placeholder="e.g. WS5 4QL"
                       value={form.zipCode}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5 sm:col-span-2">
-                    <label className="font-body text-xs font-bold text-[#2D2136]">Country</label>
+                    <label htmlFor="country" className="font-body text-xs font-bold text-[#2D2136]">Country</label>
                     <input
+                      id="country"
                       type="text"
                       name="country"
+                      placeholder="e.g. United Kingdom (Optional)"
                       value={form.country}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
@@ -522,9 +655,14 @@ export default function PersonDetailsPage() {
                 <Button variant="secondary" onClick={() => { setIsEditing(false); setError(""); }} className="!px-5 !py-2.5 !text-xs font-bold shadow-none">
                   Cancel
                 </Button>
-                <Button variant="primary" onClick={handleSaveEdit} className="!px-6 !py-2.5 !text-xs font-bold shadow-none">
+                <Button
+                  variant="primary"
+                  onClick={handleSaveEdit}
+                  disabled={saving}
+                  className="!px-6 !py-2.5 !text-xs font-bold shadow-none"
+                >
                   <Check size={14} className="mr-1.5" />
-                  Save Changes
+                  {saving ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </div>
@@ -556,10 +694,10 @@ export default function PersonDetailsPage() {
                         {person.mobile}
                       </span>
                     )}
-                    {person.country && (
+                    {person.address && (
                       <span className="flex items-center gap-1.5 font-body text-xs text-zinc-500">
                         <MapPin size={13} className="text-[#F000E2]" />
-                        {person.country}
+                        {person.address}
                       </span>
                     )}
                   </div>
@@ -576,13 +714,7 @@ export default function PersonDetailsPage() {
                   <DetailField label="Relationship" value={person.relationship} />
                   <DetailField label="Email" value={person.email} />
                   <DetailField label="Mobile" value={person.mobile} />
-                  <DetailField label="Address Line 1" value={person.address1} />
-                  <DetailField label="Address Line 2" value={person.address2} />
-                  <DetailField label="Suburb" value={person.suburb} />
-                  <DetailField label="City" value={person.city} />
-                  <DetailField label="State" value={person.state} />
-                  <DetailField label="Zip Code" value={person.zipCode} />
-                  <DetailField label="Country" value={person.country} className="sm:col-span-2" />
+                  <DetailField label="Address" value={person.address} className="sm:col-span-2" />
                 </div>
               </div>
 
@@ -616,6 +748,17 @@ export default function PersonDetailsPage() {
                             <h4 className="font-display text-base font-bold text-[#1E227D] mt-1.5 leading-tight">
                               {booking.serviceName}
                             </h4>
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-[#1E227D]/5 text-[10px] font-bold tracking-wider text-[#1E227D]">
+                                {booking.appointmentCode}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-[10px] font-bold tracking-wider text-emerald-700">
+                                {booking.status}
+                              </span>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 text-[10px] font-bold tracking-wider text-amber-700">
+                                {booking.paymentStatus}
+                              </span>
+                            </div>
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 font-body text-xs text-zinc-600">
                               <div className="flex items-center gap-1.5">
                                 <Calendar size={14} className="text-[#1E227D]/70" />

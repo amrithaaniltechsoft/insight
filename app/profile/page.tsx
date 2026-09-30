@@ -3,10 +3,17 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Check, UserPlus, Trash2, Users } from "lucide-react";
+import { Check, Trash2, UserPlus, Users } from "lucide-react";
 import DashboardLayout from "@/components/profile/DashboardLayout";
 import Button from "@/components/ui/Button";
-import { getPeople, savePeople, getPersonFullName, Person } from "@/lib/people";
+import {
+  deletePerson,
+  fetchPeople,
+  savePerson,
+  getPersonFullName,
+  getPersonInitials,
+  Person,
+} from "@/lib/people";
 
 export default function ProfilePage() {
   const [formData, setFormData] = useState({
@@ -32,7 +39,10 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
   const [buttonState, setButtonState] = useState<"idle" | "saving" | "saved">("idle");
 
-  const [people, setPeople] = useState<Person[]>(() => getPeople());
+  const [people, setPeople] = useState<Person[]>([]);
+  const [peopleLoading, setPeopleLoading] = useState(true);
+  const [peopleError, setPeopleError] = useState("");
+  const [savingPerson, setSavingPerson] = useState(false);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [personForm, setPersonForm] = useState({
     title: "",
@@ -54,6 +64,9 @@ export default function ProfilePage() {
     relationship: "Family",
   });
   const [personError, setPersonError] = useState("");
+  /** Person id being removed, and the one awaiting confirmation. */
+  const [removingPersonId, setRemovingPersonId] = useState<string | null>(null);
+  const [confirmingPersonId, setConfirmingPersonId] = useState<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
 
@@ -101,6 +114,45 @@ export default function ProfilePage() {
     });
   }, []);
 
+  // "My People" is read from the `patients` table rather than browser storage, so
+  // it is the same on every device. Guests have no customer record yet, which
+  // the API reports as an empty list rather than an error.
+  useEffect(() => {
+    const customerEmail =
+      localStorage.getItem("is_signed_in") === "true"
+        ? localStorage.getItem("user_email") || ""
+        : "";
+
+    let cancelled = false;
+    // Every state update happens in a promise callback rather than in the effect
+    // body, so this does not cascade a render on mount.
+    (async () => {
+      if (!customerEmail) {
+        setPeople([]);
+        setPeopleLoading(false);
+        return;
+      }
+      try {
+        const loaded = await fetchPeople(customerEmail);
+        if (cancelled) return;
+        setPeople(loaded);
+      } catch (error) {
+        if (cancelled) return;
+        setPeopleError(
+          error instanceof Error
+            ? error.message
+            : "Failed to load your people."
+        );
+      } finally {
+        if (!cancelled) setPeopleLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const openAddPerson = () => {
     setPersonForm({
       title: "",
@@ -131,7 +183,7 @@ export default function ProfilePage() {
     setPersonError("");
   };
 
-  const handleAddPerson = () => {
+  const handleAddPerson = async () => {
     if (!personForm.firstName.trim() || !personForm.lastName.trim()) {
       setPersonError("First Name and Last Name are required.");
       return;
@@ -145,37 +197,81 @@ export default function ProfilePage() {
       return;
     }
 
-    const formattedDob = `${personForm.dobYear}-${personForm.dobMonth.padStart(2, "0")}-${personForm.dobDay.padStart(2, "0")}`;
-    const newPerson: Person = {
-      id: `person-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-      title: personForm.title,
-      firstName: personForm.firstName.trim(),
-      lastName: personForm.lastName.trim(),
-      gender: personForm.gender,
-      dob: formattedDob,
-      email: personForm.email.trim(),
-      mobile: personForm.mobile.trim(),
-      address1: personForm.address1.trim(),
-      address2: personForm.address2.trim(),
-      suburb: personForm.suburb.trim(),
-      city: personForm.city.trim(),
-      state: personForm.state.trim(),
-      zipCode: personForm.zipCode.trim(),
-      country: personForm.country.trim(),
-      relationship: personForm.relationship,
-    };
+    const customerEmail = localStorage.getItem("user_email") || "";
+    if (!customerEmail) {
+      setPersonError("Please sign in before adding someone to book for.");
+      return;
+    }
 
-    const updated = [...people, newPerson];
-    setPeople(updated);
-    savePeople(updated);
-    setShowAddPerson(false);
+    const formattedDob = `${personForm.dobYear}-${personForm.dobMonth.padStart(2, "0")}-${personForm.dobDay.padStart(2, "0")}`;
+
+    setSavingPerson(true);
     setPersonError("");
+    try {
+      const newPerson = await savePerson({
+        customerEmail,
+        firstName: personForm.firstName.trim(),
+        lastName: personForm.lastName.trim(),
+        gender: personForm.gender,
+        dob: formattedDob,
+        email: personForm.email.trim(),
+        mobile: personForm.mobile.trim(),
+        // The parts are sent individually; the API packs them into the single
+        // `patients.address` column field by field.
+        address: {
+          address1: personForm.address1.trim(),
+          address2: personForm.address2.trim(),
+          suburb: personForm.suburb.trim(),
+          city: personForm.city.trim(),
+          state: personForm.state.trim(),
+          zipCode: personForm.zipCode.trim(),
+          country: personForm.country.trim(),
+        },
+        title: personForm.title.trim(),
+        relationship: personForm.relationship,
+      });
+
+      setPeople((prev) => [newPerson, ...prev]);
+      setShowAddPerson(false);
+      setPersonError("");
+      // Keeps the sidebar count in step with this list.
+      window.dispatchEvent(new Event("people-changed"));
+    } catch (error) {
+      setPersonError(
+        error instanceof Error ? error.message : "Failed to add this person."
+      );
+    } finally {
+      setSavingPerson(false);
+    }
   };
 
-  const handleRemovePerson = (id: string) => {
-    const updated = people.filter((p) => p.id !== id);
-    setPeople(updated);
-    savePeople(updated);
+  /**
+   * Removes someone from "My People". Only offered for a person with no
+   * appointments: `appointments.patient_id` is ON DELETE CASCADE, so removing
+   * someone who has booked would take their appointment history with them. The
+   * API enforces the same rule.
+   */
+  const handleRemovePerson = async (person: Person) => {
+    const customerEmail = localStorage.getItem("user_email") || "";
+    if (!customerEmail) {
+      setPeopleError("Please sign in before removing a person.");
+      return;
+    }
+
+    setRemovingPersonId(person.patientId);
+    setPeopleError("");
+    try {
+      await deletePerson(customerEmail, person.patientId);
+      setPeople((prev) => prev.filter((p) => p.patientId !== person.patientId));
+      window.dispatchEvent(new Event("people-changed"));
+    } catch (error) {
+      setPeopleError(
+        error instanceof Error ? error.message : "Failed to remove this person."
+      );
+    } finally {
+      setRemovingPersonId(null);
+      setConfirmingPersonId(null);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -485,21 +581,27 @@ export default function ProfilePage() {
             </div>
 
             {/* Address */}
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="font-body text-xs font-bold text-[#2D2136]">Address *</label>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="newAddress1" className="font-body text-xs font-bold text-[#2D2136]">Address Line 1 *</label>
               <input
+                id="newAddress1"
                 type="text"
                 name="address1"
-                placeholder="Address Line 1"
+                placeholder="e.g. 12 High Street"
                 value={formData.address1}
                 onChange={handleInputChange}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] focus:bg-white mb-1.5"
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
                 required
               />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="newAddress2" className="font-body text-xs font-bold text-[#2D2136]">Address Line 2</label>
               <input
+                id="newAddress2"
                 type="text"
                 name="address2"
-                placeholder="Address Line 2 (Optional)"
+                placeholder="Apartment, Flat or Unit (Optional)"
                 value={formData.address2}
                 onChange={handleInputChange}
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
@@ -507,56 +609,66 @@ export default function ProfilePage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="font-body text-xs font-bold text-[#2D2136]">Suburb</label>
+              <label htmlFor="newSuburb" className="font-body text-xs font-bold text-[#2D2136]">Suburb</label>
               <input
+                id="newSuburb"
                 type="text"
                 name="suburb"
+                placeholder="e.g. Blakenall (Optional)"
                 value={formData.suburb}
                 onChange={handleInputChange}
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
               />
             </div>
-            
+
             <div className="flex flex-col gap-1.5">
-              <label className="font-body text-xs font-bold text-[#2D2136]">City *</label>
+              <label htmlFor="newCity" className="font-body text-xs font-bold text-[#2D2136]">City *</label>
               <input
+                id="newCity"
                 type="text"
                 name="city"
+                placeholder="e.g. Walsall"
                 value={formData.city}
                 onChange={handleInputChange}
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
                 required
               />
             </div>
-            
+
             <div className="flex flex-col gap-1.5">
-              <label className="font-body text-xs font-bold text-[#2D2136]">State</label>
+              <label htmlFor="newState" className="font-body text-xs font-bold text-[#2D2136]">State / County</label>
               <input
+                id="newState"
                 type="text"
                 name="state"
+                placeholder="e.g. West Midlands (Optional)"
                 value={formData.state}
                 onChange={handleInputChange}
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
               />
             </div>
-            
+
             <div className="flex flex-col gap-1.5">
-              <label className="font-body text-xs font-bold text-[#2D2136]">Zip Code *</label>
+              <label htmlFor="newZipCode" className="font-body text-xs font-bold text-[#2D2136]">Zip / Post Code *</label>
               <input
+                id="newZipCode"
                 type="text"
                 name="zipCode"
+                placeholder="e.g. WS5 4QL"
                 value={formData.zipCode}
                 onChange={handleInputChange}
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
                 required
               />
             </div>
-            
+
             <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="font-body text-xs font-bold text-[#2D2136]">Country</label>
+              <label htmlFor="newCountry" className="font-body text-xs font-bold text-[#2D2136]">Country</label>
               <input
+                id="newCountry"
                 type="text"
                 name="country"
+                placeholder="e.g. United Kingdom (Optional)"
                 value={formData.country}
                 onChange={handleInputChange}
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] focus:bg-white"
@@ -811,15 +923,30 @@ export default function ProfilePage() {
                 <Button variant="secondary" onClick={() => setShowAddPerson(false)} className="!px-5 !py-2.5 !text-xs font-bold shadow-none">
                   Cancel
                 </Button>
-                <Button variant="primary" onClick={handleAddPerson} className="!px-6 !py-2.5 !text-xs font-bold shadow-none">
-                  Save Person
+                <Button
+                  variant="primary"
+                  onClick={handleAddPerson}
+                  disabled={savingPerson}
+                  className="!px-6 !py-2.5 !text-xs font-bold shadow-none"
+                >
+                  {savingPerson ? "Saving..." : "Save Person"}
                 </Button>
               </div>
             </div>
           )}
 
           <div className="flex flex-col gap-3">
-            {people.length === 0 && !showAddPerson && (
+            {peopleError && (
+              <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-body text-xs font-semibold text-red-700">
+                {peopleError}
+              </div>
+            )}
+            {peopleLoading && (
+              <div className="border border-dashed border-zinc-300 rounded-2xl p-8 text-center">
+                <p className="font-body text-xs text-zinc-400">Loading your people&hellip;</p>
+              </div>
+            )}
+            {!peopleLoading && people.length === 0 && !showAddPerson && (
               <div className="border border-dashed border-zinc-300 rounded-2xl p-8 text-center">
                 <Users size={22} className="mx-auto text-zinc-300 mb-2" />
                 <p className="font-body text-xs text-zinc-400">
@@ -834,35 +961,66 @@ export default function ProfilePage() {
                   className="flex items-center gap-3 min-w-0 flex-1 group"
                 >
                   <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#E0A2F5] to-[#1E227D] flex items-center justify-center text-white font-display text-sm font-bold shrink-0">
-                    {person.firstName.charAt(0)}
-                    {person.lastName.charAt(0)}
+                    {getPersonInitials(person)}
                   </div>
                   <div className="flex flex-col min-w-0">
                     <span className="font-display text-sm font-bold text-[#2D2136] truncate group-hover:text-[#1E227D] transition-colors">
                       {getPersonFullName(person)}
                     </span>
                     <span className="font-body text-xs text-zinc-500">
-                      {person.relationship} &middot; {person.gender} &middot; DOB {person.dob}
+                      {[person.relationship, person.gender, person.dob ? `DOB ${person.dob}` : ""].filter(Boolean).join(" &middot; ")}
                     </span>
                     {(person.email || person.mobile) && (
                       <span className="font-body text-xs text-zinc-500">
                         {[person.email, person.mobile].filter(Boolean).join(" &middot; ")}
                       </span>
                     )}
-                    {person.address1 && (
+                    {person.address && (
                       <span className="font-body text-xs text-zinc-500">
-                        {[person.address1, person.address2, person.suburb, person.city, person.zipCode, person.country].filter(Boolean).join(", ")}
+                        {person.address}
                       </span>
                     )}
                   </div>
                 </Link>
-                <button
-                  onClick={() => handleRemovePerson(person.id)}
-                  aria-label={`Remove ${getPersonFullName(person)}`}
-                  className="h-9 w-9 shrink-0 rounded-full flex items-center justify-center text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {person.patientCode && (
+                    <span className="hidden sm:inline font-body text-[10px] font-bold tracking-wider text-zinc-400">
+                      {person.patientCode}
+                    </span>
+                  )}
+
+                  {/* Anyone with bookings keeps their record, so the action is
+                      hidden rather than offered and then refused. */}
+                  {person.appointmentCount === 0 &&
+                    (confirmingPersonId === person.patientId ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleRemovePerson(person)}
+                          disabled={removingPersonId === person.patientId}
+                          className="rounded-lg bg-red-600 px-3 py-2 font-body text-[11px] font-bold text-white transition-colors hover:bg-red-700 disabled:opacity-60 cursor-pointer"
+                        >
+                          {removingPersonId === person.patientId
+                            ? "Removing…"
+                            : "Yes, remove"}
+                        </button>
+                        <button
+                          onClick={() => setConfirmingPersonId(null)}
+                          disabled={removingPersonId === person.patientId}
+                          className="rounded-lg border border-zinc-200 bg-white px-3 py-2 font-body text-[11px] font-bold text-zinc-600 transition-colors hover:bg-zinc-50 disabled:opacity-60 cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmingPersonId(person.patientId)}
+                        title="Remove this person"
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition-colors hover:bg-red-100 cursor-pointer"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    ))}
+                </div>
               </div>
             ))}
           </div>

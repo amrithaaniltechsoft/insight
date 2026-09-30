@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, UserPlus, Check } from "lucide-react";
 import DashboardLayout from "@/components/profile/DashboardLayout";
 import Button from "@/components/ui/Button";
-import { getPeople, savePeople, Person } from "@/lib/people";
+import { savePerson } from "@/lib/people";
 
 export default function AddPersonPage() {
   const router = useRouter();
@@ -30,14 +30,19 @@ export default function AddPersonPage() {
     relationship: "Family",
   });
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    // Mobile accepts digits only — drop any other characters as they are typed.
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === "mobile" ? value.replace(/\D/g, "").slice(0, 20) : value,
+    }));
     setError("");
   };
 
-  const handleAddPerson = () => {
+  const handleAddPerson = async () => {
     if (!form.firstName.trim() || !form.lastName.trim()) {
       setError("First Name and Last Name are required.");
       return;
@@ -51,30 +56,51 @@ export default function AddPersonPage() {
       return;
     }
 
-    const formattedDob = `${form.dobYear}-${form.dobMonth.padStart(2, "0")}-${form.dobDay.padStart(2, "0")}`;
-    const newPerson: Person = {
-      id: `person-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-      title: form.title,
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      gender: form.gender,
-      dob: formattedDob,
-      email: form.email.trim(),
-      mobile: form.mobile.trim(),
-      address1: form.address1.trim(),
-      address2: form.address2.trim(),
-      suburb: form.suburb.trim(),
-      city: form.city.trim(),
-      state: form.state.trim(),
-      zipCode: form.zipCode.trim(),
-      country: form.country.trim(),
-      relationship: form.relationship,
-    };
+    const customerEmail = localStorage.getItem("user_email") || "";
+    if (!customerEmail) {
+      setError("Please sign in before adding someone to book for.");
+      return;
+    }
 
-    const updated = [...getPeople(), newPerson];
-    savePeople(updated);
-    window.dispatchEvent(new Event("storage"));
-    router.push("/profile");
+    const formattedDob = `${form.dobYear}-${form.dobMonth.padStart(2, "0")}-${form.dobDay.padStart(2, "0")}`;
+
+    setSaving(true);
+    try {
+      await savePerson({
+        customerEmail,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        gender: form.gender,
+        dob: formattedDob,
+        email: form.email.trim(),
+        mobile: form.mobile.trim(),
+        // `patients.address` is a single column, so the address parts are joined
+        // into the one line the table stores.
+        // The parts are sent individually; the API packs them into the single
+        // `patients.address` column field by field.
+        address: {
+          address1: form.address1.trim(),
+          address2: form.address2.trim(),
+          suburb: form.suburb.trim(),
+          city: form.city.trim(),
+          state: form.state.trim(),
+          zipCode: form.zipCode.trim(),
+          country: form.country.trim(),
+        },
+        title: form.title.trim(),
+        relationship: form.relationship,
+      });
+      window.dispatchEvent(new Event("people-changed"));
+      router.push("/profile");
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : "Failed to add this person."
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -179,70 +205,85 @@ export default function AddPersonPage() {
                 className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
               />
             </div>
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="font-body text-xs font-bold text-[#2D2136]">Address</label>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="address1" className="font-body text-xs font-bold text-[#2D2136]">Address Line 1 *</label>
               <input
+                id="address1"
                 type="text"
                 name="address1"
-                placeholder="Address Line 1"
+                placeholder="e.g. 12 High Street"
                 value={form.address1}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D] mb-1.5"
+                className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
               />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="address2" className="font-body text-xs font-bold text-[#2D2136]">Address Line 2</label>
               <input
+                id="address2"
                 type="text"
                 name="address2"
-                placeholder="Address Line 2 (Optional)"
+                placeholder="Apartment, Flat or Unit (Optional)"
                 value={form.address2}
                 onChange={handleChange}
                 className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="font-body text-xs font-bold text-[#2D2136]">Suburb</label>
+              <label htmlFor="suburb" className="font-body text-xs font-bold text-[#2D2136]">Suburb</label>
               <input
+                id="suburb"
                 type="text"
                 name="suburb"
+                placeholder="e.g. Blakenall (Optional)"
                 value={form.suburb}
                 onChange={handleChange}
                 className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="font-body text-xs font-bold text-[#2D2136]">City</label>
+              <label htmlFor="city" className="font-body text-xs font-bold text-[#2D2136]">City</label>
               <input
+                id="city"
                 type="text"
                 name="city"
+                placeholder="e.g. Walsall (Optional)"
                 value={form.city}
                 onChange={handleChange}
                 className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="font-body text-xs font-bold text-[#2D2136]">State</label>
+              <label htmlFor="state" className="font-body text-xs font-bold text-[#2D2136]">State / County</label>
               <input
+                id="state"
                 type="text"
                 name="state"
+                placeholder="e.g. West Midlands (Optional)"
                 value={form.state}
                 onChange={handleChange}
                 className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="font-body text-xs font-bold text-[#2D2136]">Zip / Post Code</label>
+              <label htmlFor="zipCode" className="font-body text-xs font-bold text-[#2D2136]">Zip / Post Code</label>
               <input
+                id="zipCode"
                 type="text"
                 name="zipCode"
+                placeholder="e.g. WS5 4QL (Optional)"
                 value={form.zipCode}
                 onChange={handleChange}
                 className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
               />
             </div>
             <div className="flex flex-col gap-1.5 sm:col-span-2">
-              <label className="font-body text-xs font-bold text-[#2D2136]">Country</label>
+              <label htmlFor="country" className="font-body text-xs font-bold text-[#2D2136]">Country</label>
               <input
+                id="country"
                 type="text"
                 name="country"
+                placeholder="e.g. United Kingdom (Optional)"
                 value={form.country}
                 onChange={handleChange}
                 className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
@@ -291,9 +332,14 @@ export default function AddPersonPage() {
           <Button variant="secondary" onClick={() => router.push("/profile")} className="!px-5 !py-2.5 !text-xs font-bold shadow-none">
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleAddPerson} className="!px-6 !py-2.5 !text-xs font-bold shadow-none">
+          <Button
+            variant="primary"
+            onClick={handleAddPerson}
+            disabled={saving}
+            className="!px-6 !py-2.5 !text-xs font-bold shadow-none"
+          >
             <Check size={14} className="mr-1.5" />
-            Save Person
+            {saving ? "Saving..." : "Save Person"}
           </Button>
         </div>
       </div>
