@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import type { RowDataPacket } from "mysql2/promise";
-import { getDb } from "@/lib/db";
+import { dbFailureResponse, getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -62,10 +62,10 @@ export async function GET(request: NextRequest) {
 
     return Response.json({ recommendations: all });
   } catch (error) {
-    console.error("Assessment API error:", error);
-    return Response.json(
-      { error: "Failed to load recommendations" },
-      { status: 500 }
+    return dbFailureResponse(
+      "Assessment API error:",
+      error,
+      "Failed to load recommendations"
     );
   }
 }

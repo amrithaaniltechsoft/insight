@@ -276,19 +276,63 @@ export async function findExistingPatient(
   return rows.length ? Number(rows[0].id) : null;
 }
 
+/**
+ * `patients.title` is a real column now, but it was added to the schema after
+ * this code was first written, so any database that has not had the migration
+ * run yet does not have it.
+ *
+ * That matters more than it sounds: a query naming a column that does not exist
+ * fails with ER_BAD_FIELD_ERROR, and because the title is named in the INSERT,
+ * the UPDATE and the SELECT alike, its absence took down the *entire* add, edit
+ * and list path rather than just the title. So the column is detected, and left
+ * out of the SQL until it is there. Titles are simply not stored until the
+ * column exists; nothing else notices, and no redeploy is needed once the
+ * migration runs.
+ *
+ * Re-checked at most once a minute so that adding the column takes effect on its
+ * own rather than needing a new deployment.
+ */
+const TITLE_CHECK_TTL_MS = 60_000;
+let titleColumnCache: { checkedAt: number; exists: boolean } | null = null;
+
+export async function hasTitleColumn(conn: PoolConnection): Promise<boolean> {
+  const now = Date.now();
+  if (titleColumnCache && now - titleColumnCache.checkedAt < TITLE_CHECK_TTL_MS) {
+    return titleColumnCache.exists;
+  }
+
+  let exists = false;
+  try {
+    const [rows] = await conn.query<RowDataPacket[]>(
+      "SHOW COLUMNS FROM patients LIKE 'title'"
+    );
+    exists = rows.length > 0;
+  } catch {
+    // Unreadable table is treated as "no title column" — the queries below then
+    // use the older column set, which is what the database can actually run.
+    exists = false;
+  }
+
+  titleColumnCache = { checkedAt: now, exists };
+  return exists;
+}
+
 export async function writePatient(
   conn: PoolConnection,
   customerId: number | null,
   input: PatientInput,
   existingPatientId: number | null
 ): Promise<number> {
+  const withTitle = await hasTitleColumn(conn);
+  const title = withTitle ? input.title : null;
+
   if (existingPatientId !== null) {
     await conn.query<ResultSetHeader>(
       `UPDATE patients
           SET customer_id = ?,
               first_name  = ?,
               last_name   = ?,
-              title       = ?,
+              ${withTitle ? "title       = ?," : ""}
               dob         = ?,
               gender      = ?,
               email       = ?,
@@ -300,7 +344,7 @@ export async function writePatient(
         customerId,
         input.firstName,
         input.lastName,
-        input.title,
+        ...(withTitle ? [title] : []),
         input.dob,
         input.gender,
         input.email,
@@ -317,15 +361,16 @@ export async function writePatient(
     try {
       const [result] = await conn.query<ResultSetHeader>(
         `INSERT INTO patients
-           (patient_code, customer_id, first_name, last_name, title, dob, gender,
-            email, phone, address, status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
+           (patient_code, customer_id, first_name, last_name,
+            ${withTitle ? "title," : ""}
+            dob, gender, email, phone, address, status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ${withTitle ? "?, " : ""}?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
         [
           await generatePatientCode(conn),
           customerId,
           input.firstName,
           input.lastName,
-          input.title,
+          ...(withTitle ? [title] : []),
           input.dob,
           input.gender,
           input.email,
@@ -346,8 +391,10 @@ export async function readPatientById(
   conn: PoolConnection,
   patientId: number
 ): Promise<PatientRow> {
+  const withTitle = await hasTitleColumn(conn);
   const [rows] = await conn.query<PatientRow[]>(
-    `SELECT p.id, p.patient_code, p.customer_id, p.first_name, p.last_name, p.title,
+    `SELECT p.id, p.patient_code, p.customer_id, p.first_name, p.last_name,
+            ${withTitle ? "p.title," : ""}
             p.dob, p.gender, p.email, p.phone, p.address, p.status, p.created_at,
             p.updated_at,
             (SELECT COUNT(*) FROM appointments a WHERE a.patient_id = p.id)

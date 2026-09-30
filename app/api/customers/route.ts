@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { getDb } from "@/lib/db";
+import { dbFailureResponse, getDb } from "@/lib/db";
 import {
   EMAIL_PATTERN,
   GENDERS,
@@ -351,7 +351,18 @@ export async function POST(request: NextRequest) {
     address,
   };
 
-  const conn = await getDb().getConnection();
+  // A `const` because recordAppointment below closes over it; a mutable binding
+  // would widen back to `PoolConnection | null` inside that closure.
+  let conn: PoolConnection;
+  try {
+    conn = await getDb().getConnection();
+  } catch (error) {
+    return dbFailureResponse(
+      "Booking customer/patient API error:",
+      error,
+      "Failed to save the booking details."
+    );
+  }
 
   try {
     await conn.beginTransaction();
@@ -525,11 +536,11 @@ export async function POST(request: NextRequest) {
       appointment: serialiseAppointment(appointment),
     });
   } catch (error) {
-    await conn.rollback();
-    console.error("Booking customer/patient API error:", error);
-    return Response.json(
-      { message: "Failed to save the booking details." },
-      { status: 500 }
+    await conn.rollback().catch(() => {});
+    return dbFailureResponse(
+      "Booking customer/patient API error:",
+      error,
+      "Failed to save the booking details."
     );
   } finally {
     conn.release();

@@ -1,6 +1,10 @@
 import { NextRequest } from "next/server";
-import type { ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import { getDb } from "@/lib/db";
+import type {
+  PoolConnection,
+  ResultSetHeader,
+  RowDataPacket,
+} from "mysql2/promise";
+import { dbFailureResponse, getDb } from "@/lib/db";
 import {
   EMAIL_PATTERN,
   GENDERS,
@@ -12,6 +16,7 @@ import {
   findCustomerIdByEmail,
   findExistingPatient,
   joinAddress,
+  hasTitleColumn,
   normaliseDate,
   readPatientById,
   serialisePatient,
@@ -33,7 +38,20 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest) {
   const customerEmail = request.nextUrl.searchParams.get("customer_email") ?? "";
-  const conn = await getDb().getConnection();
+
+  // Acquiring the connection gets its own guard because that is what rejects
+  // when the database is unreachable. Doing it inside the main try is what
+  // turns that into a reportable response rather than a bodiless 500.
+  let conn: PoolConnection;
+  try {
+    conn = await getDb().getConnection();
+  } catch (error) {
+    return dbFailureResponse(
+      "List patients API error:",
+      error,
+      "Failed to load your people."
+    );
+  }
 
   try {
     const customerId = await findCustomerIdByEmail(conn, customerEmail);
@@ -45,8 +63,13 @@ export async function GET(request: NextRequest) {
       return Response.json({ people: [], customer_found: false });
     }
 
+    // `patients.title` is only named when the column is actually there; see
+    // hasTitleColumn in lib/patients.
+    const withTitle = await hasTitleColumn(conn);
+
     const [rows] = await conn.query<PatientRow[]>(
-      `SELECT p.id, p.patient_code, p.customer_id, p.first_name, p.last_name, p.title,
+      `SELECT p.id, p.patient_code, p.customer_id, p.first_name, p.last_name,
+              ${withTitle ? "p.title," : ""}
               p.dob, p.gender, p.email, p.phone, p.address, p.status, p.created_at,
               p.updated_at,
               (SELECT COUNT(*) FROM appointments a WHERE a.patient_id = p.id)
@@ -64,10 +87,10 @@ export async function GET(request: NextRequest) {
       customer_found: true,
     });
   } catch (error) {
-    console.error("List patients API error:", error);
-    return Response.json(
-      { message: "Failed to load your people." },
-      { status: 500 }
+    return dbFailureResponse(
+      "List patients API error:",
+      error,
+      "Failed to load your people."
     );
   } finally {
     conn.release();
@@ -149,7 +172,16 @@ export async function POST(request: NextRequest) {
     ]),
   };
 
-  const conn = await getDb().getConnection();
+  let conn: PoolConnection;
+  try {
+    conn = await getDb().getConnection();
+  } catch (error) {
+    return dbFailureResponse(
+      "Save patient API error:",
+      error,
+      "Failed to save this person."
+    );
+  }
 
   try {
     await conn.beginTransaction();
@@ -202,14 +234,16 @@ export async function POST(request: NextRequest) {
       person: serialisePatient(patient),
     });
   } catch (error) {
-    await conn.rollback();
-    console.error("Save patient API error:", error);
-    return Response.json(
-      { message: "Failed to save this person." },
-      { status: 500 }
+    // Only roll back if a connection was actually obtained — a failure to
+    // connect has no transaction to undo.
+    await conn?.rollback().catch(() => {});
+    return dbFailureResponse(
+      "Save patient API error:",
+      error,
+      "Failed to save this person."
     );
   } finally {
-    conn.release();
+    conn?.release();
   }
 }
 
@@ -242,7 +276,16 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  const conn = await getDb().getConnection();
+  let conn: PoolConnection;
+  try {
+    conn = await getDb().getConnection();
+  } catch (error) {
+    return dbFailureResponse(
+      "Save patient API error:",
+      error,
+      "Failed to save this person."
+    );
+  }
 
   try {
     await conn.beginTransaction();
@@ -314,13 +357,13 @@ export async function DELETE(request: NextRequest) {
       },
     });
   } catch (error) {
-    await conn.rollback();
-    console.error("Delete patient API error:", error);
-    return Response.json(
-      { message: "Failed to remove this person." },
-      { status: 500 }
+    await conn?.rollback().catch(() => {});
+    return dbFailureResponse(
+      "Delete patient API error:",
+      error,
+      "Failed to remove this person."
     );
   } finally {
-    conn.release();
+    conn?.release();
   }
 }

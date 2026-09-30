@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import type { RowDataPacket } from "mysql2/promise";
-import { getDb } from "@/lib/db";
+import type { PoolConnection, RowDataPacket } from "mysql2/promise";
+import { dbFailureResponse, getDb } from "@/lib/db";
+import { hasTitleColumn } from "@/lib/patients";
 import {
   EMAIL_PATTERN,
   asId,
@@ -36,11 +37,16 @@ interface AppointmentRow extends RowDataPacket {
   created_at: Date | string | null;
 }
 
-const SELECT_APPOINTMENTS = `
+/**
+ * `patients.title` is only selected when the column is actually there; see
+ * hasTitleColumn in lib/patients. Naming a column the database does not have
+ * would fail the whole query, taking the booking list down over a title.
+ */
+const selectAppointments = (withTitle: boolean) => `
   SELECT a.id, a.appointment_code, a.patient_id,
          p.patient_code, p.first_name AS patient_first_name,
          p.last_name AS patient_last_name,
-         p.title AS patient_title,
+         ${withTitle ? "p.title AS patient_title," : ""}
          a.service_id, s.service_name, s.title AS service_title,
          s.price AS service_price, c.name AS category_name, c.slug AS category_slug,
          a.appointment_date, a.start_time, a.end_time,
@@ -112,7 +118,16 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const conn = await getDb().getConnection();
+  let conn: PoolConnection;
+  try {
+    conn = await getDb().getConnection();
+  } catch (error) {
+    return dbFailureResponse(
+      "List appointments API error:",
+      error,
+      "Failed to load appointments."
+    );
+  }
 
   try {
     const customerId = await findCustomerIdByEmail(conn, customerEmail);
@@ -123,20 +138,22 @@ export async function GET(request: NextRequest) {
       return Response.json({ appointments: [], customer_found: false });
     }
 
+    const select = selectAppointments(await hasTitleColumn(conn));
+
     let rows: AppointmentRow[];
 
     if (patientId !== null) {
       // The patient_id is matched against this customer in the same query, so
       // one account can never read another account's appointments.
       [rows] = await conn.query<AppointmentRow[]>(
-        `${SELECT_APPOINTMENTS}
+        `${select}
           WHERE p.customer_id = ? AND a.patient_id = ?
           ORDER BY a.appointment_date DESC, a.start_time DESC, a.id DESC`,
         [customerId, patientId]
       );
     } else {
       [rows] = await conn.query<AppointmentRow[]>(
-        `${SELECT_APPOINTMENTS}
+        `${select}
           WHERE p.customer_id = ?
           ORDER BY a.appointment_date DESC, a.start_time DESC, a.id DESC`,
         [customerId]
@@ -148,10 +165,10 @@ export async function GET(request: NextRequest) {
       customer_found: true,
     });
   } catch (error) {
-    console.error("List appointments API error:", error);
-    return Response.json(
-      { message: "Failed to load appointments." },
-      { status: 500 }
+    return dbFailureResponse(
+      "List appointments API error:",
+      error,
+      "Failed to load appointments."
     );
   } finally {
     conn.release();
