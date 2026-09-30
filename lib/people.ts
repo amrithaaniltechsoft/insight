@@ -192,6 +192,26 @@ export interface SavePersonInput {
   patientId?: string;
 }
 
+/**
+ * Where the people endpoints live.
+ *
+ * The database is on the Laravel host, and a Vercel function cannot open a MySQL
+ * connection to it — `DB_HOST` there is `127.0.0.1`, meaning "this machine". So
+ * the reads and writes go through the Laravel API, which runs on that host and
+ * reaches the database over localhost.
+ *
+ * `/api/patients` is still there and still works against a reachable database
+ * (it is what `next dev` uses, and it is the faster path if a shared database is
+ * ever configured on Vercel). It is not used in production, because on Vercel it
+ * cannot reach the data.
+ */
+const PEOPLE_API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+
+function peopleEndpoint(query = "") {
+  return `${PEOPLE_API_URL}/people${query}`;
+}
+
 async function readErrorMessage(response: Response, fallback: string) {
   try {
     const data = (await response.json()) as { message?: string };
@@ -204,7 +224,7 @@ async function readErrorMessage(response: Response, fallback: string) {
 /** Lists the customer saved people, newest first. */
 export async function fetchPeople(customerEmail: string): Promise<Person[]> {
   const query = new URLSearchParams({ customer_email: customerEmail });
-  const response = await fetch(`/api/patients?${query.toString()}`, {
+  const response = await fetch(peopleEndpoint(`?${query.toString()}`), {
     cache: "no-store",
   });
 
@@ -221,7 +241,7 @@ export async function fetchPeople(customerEmail: string): Promise<Person[]> {
 /** Creates or updates one person, and remembers their relationship label. */
 export async function savePerson(input: SavePersonInput): Promise<Person> {
   const parts = input.address ?? EMPTY_PARTS;
-  const response = await fetch("/api/patients", {
+  const response = await fetch(peopleEndpoint(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -283,7 +303,7 @@ export async function deletePerson(
     patient_id: patientId,
   });
 
-  const response = await fetch(`/api/patients?${query.toString()}`, {
+  const response = await fetch(peopleEndpoint(`?${query.toString()}`), {
     method: "DELETE",
     cache: "no-store",
   });
