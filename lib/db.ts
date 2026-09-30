@@ -4,6 +4,23 @@ let pool: mysql.Pool | null = null;
 
 export function getDb() {
   if (!pool) {
+    // The localhost defaults below exist so `next dev` works with no setup at
+    // all. On a deploy they are actively harmful: with no DB_* variables set the
+    // app quietly tries to reach a MySQL inside its own container, and every
+    // query fails with ECONNREFUSED — which reads like "the server is down"
+    // rather than "this deploy was never configured". So in production, refuse
+    // to guess and say what is actually wrong.
+    if (process.env.NODE_ENV === "production" && !process.env.DB_HOST) {
+      throw Object.assign(
+        new Error(
+          "DB_HOST is not set on this deployment. Add the DB_HOST, DB_PORT, " +
+            "DB_USER, DB_PASSWORD and DB_NAME environment variables to the " +
+            "project, then redeploy."
+        ),
+        { code: "DB_NOT_CONFIGURED" }
+      );
+    }
+
     pool = mysql.createPool({
       host: process.env.DB_HOST || "127.0.0.1",
       port: Number(process.env.DB_PORT || 3306),
@@ -25,6 +42,7 @@ export function getDb() {
  * turn that into something reportable.
  */
 export type DbFailureKind =
+  | "not_configured"
   | "unreachable"
   | "access_denied"
   | "unknown_database"
@@ -64,6 +82,7 @@ export function classifyDbError(error: unknown): DbFailure {
   ) {
     return { kind: "unreachable", code: code || "CONNECTION_FAILED" };
   }
+  if (code === "DB_NOT_CONFIGURED") return { kind: "not_configured", code };
   if (code === "ER_ACCESS_DENIED_ERROR") return { kind: "access_denied", code };
   if (code === "ER_BAD_DB_ERROR") return { kind: "unknown_database", code };
   if (code === "ER_NO_SUCH_TABLE") return { kind: "missing_table", code };
@@ -78,6 +97,11 @@ export function classifyDbError(error: unknown): DbFailure {
  */
 export function describeDbFailure(failure: DbFailure): string {
   switch (failure.kind) {
+    case "not_configured":
+      // Visitors cannot fix this, and naming the variables would just leak
+      // setup detail to anyone watching. The `code` in the response and the
+      // logged message carry the specifics for whoever deploys this.
+      return "This service is temporarily unavailable. Please try again shortly.";
     case "unreachable":
       return "The server cannot reach its database right now. Please try again in a moment.";
     case "access_denied":

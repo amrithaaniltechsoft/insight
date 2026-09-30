@@ -29,10 +29,20 @@ export async function GET() {
   try {
     await getDb().query("SELECT 1");
   } catch (error) {
+    const failure = classifyDbError(error);
+
     return Response.json({
-      database: "unreachable",
+      // `not_configured` is reported as its own state: nothing is wrong with the
+      // database, the deploy simply never received its credentials.
+      database: failure.kind === "not_configured" ? "not_configured" : "unreachable",
       env,
-      failure: classifyDbError(error),
+      // The message names the missing variables, which is safe here and only
+      // here — it is the diagnostic route, and it is deleted once healthy.
+      hint:
+        failure.kind === "not_configured"
+          ? "Add DB_HOST, DB_PORT, DB_USER, DB_PASSWORD and DB_NAME to this project's environment variables, then redeploy."
+          : undefined,
+      failure,
     });
   }
 
