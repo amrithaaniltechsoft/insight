@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -27,6 +28,8 @@ export default function SignInModal({ isOpen, onClose, onSignInSuccess }: SignIn
   const [dobYear, setDobYear] = useState("");
   const [error, setError] = useState("");
   const [devOtp, setDevOtp] = useState("");
+
+  const router = useRouter();
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
 
@@ -366,7 +369,8 @@ export default function SignInModal({ isOpen, onClose, onSignInSuccess }: SignIn
                     <option value="">Select Gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value="Non-binary">Non-binary</option>
+                    <option value="Prefer not to say">I&rsquo;d rather not say</option>
                   </select>
                 </div>
 
@@ -503,7 +507,11 @@ export default function SignInModal({ isOpen, onClose, onSignInSuccess }: SignIn
                 <Button
                   variant="primary"
                   className="w-full mt-4"
-                  onClick={resetForm}
+                  onClick={() => {
+                    // resetForm clears the modal, so the redirect happens after.
+                    resetForm();
+                    router.push("/profile");
+                  }}
                 >
                   Get Started
                 </Button>

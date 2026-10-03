@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calendar, Clock, Tag, Stethoscope, User } from "lucide-react";
+import { Calendar, Clock, Tag, Stethoscope, User, FileText } from "lucide-react";
 import DashboardLayout from "@/components/profile/DashboardLayout";
 import Button from "@/components/ui/Button";
 import {
@@ -81,8 +81,11 @@ export default function MyBookingsPage() {
     };
   }, []);
 
-  const handleBookAgain = (slug: string) => {
-    router.push(`/book-appointment?service=${slug}`);
+  // Takes the customer to their laboratory results rather than back into the
+  // booking wizard — the destination is the whole results list, so there is no
+  // per-booking parameter to pass.
+  const handleViewResults = () => {
+    router.push("/my-results");
   };
 
   return (
@@ -171,9 +174,11 @@ export default function MyBookingsPage() {
                   <Button
                     variant="primary"
                     className="!px-5 !py-2.5 !text-xs font-bold shadow-none w-full sm:w-auto"
-                    onClick={() => handleBookAgain(booking.serviceSlug)}
+                    onClick={handleViewResults}
+                    icon={<FileText size={14} />}
+                    iconPosition="left"
                   >
-                    Book Again
+                    My Result
                   </Button>
                 </div>
               </div>

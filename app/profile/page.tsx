@@ -470,7 +470,11 @@ export default function ProfilePage() {
                 <option value="">Select</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="Non-binary">Non-binary</option>
+                <option value="Prefer not to say">I&rsquo;d rather not say</option>
+                {/* Retired from the list, but anyone saved with it
+                    before must still show their stored value. */}
+                {formData.gender === "Other" && <option value="Other">Other</option>}
               </select>
             </div>
 
@@ -767,7 +771,11 @@ export default function ProfilePage() {
                     <option value="">Select</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value="Non-binary">Non-binary</option>
+                    <option value="Prefer not to say">I&rsquo;d rather not say</option>
+                    {/* Retired from the list, but anyone saved with it
+                        before must still show their stored value. */}
+                    {personForm.gender === "Other" && <option value="Other">Other</option>}
                   </select>
                 </div>
                 <div className="flex flex-col gap-1.5">

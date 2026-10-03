@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronRight, CalendarDays, User, FileText, ClipboardList, Users, UserPlus, X } from "lucide-react";
+import { Check, ChevronRight, CalendarDays, CreditCard, Lock, User, FileText, ClipboardList, Users, UserPlus, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { servicesData } from "@/components/servicelistingpage/servicesData";
 import { fetchPeople, savePerson, getPersonFullName, Person } from "@/lib/people";
@@ -17,10 +17,51 @@ const steps = [
   { id: 4, title: "Review & Confirm", icon: ClipboardList },
 ];
 
+/**
+ * Only quote a price inside the pay button when it is a real amount — services
+ * priced "POA" would otherwise read as "Pay POA Now".
+ */
+function isPayablePrice(price: string): boolean {
+  return /^[£$€]\s?\d/.test(price.trim());
+}
+
 export default function BookAppointmentWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const serviceSlug = searchParams.get("service") || "";
+  const categorySlug = searchParams.get("category") || "";
+
+  /**
+   * A test that is not in the static `servicesData` catalog — every blood test,
+   * since that list only hardcodes a handful. Loaded from the API by exact slug
+   * so the summary shows the test that was actually chosen rather than falling
+   * back to "General Consultation".
+   */
+  const [apiService, setApiService] = useState<{ title: string; price: string | null; service_name: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!serviceSlug || !categorySlug) {
+      setApiService(null);
+      return;
+    }
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+    const controller = new AbortController();
+
+    fetch(`${API_URL}/services/category/${categorySlug}`, { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const match = (data?.services || []).find((s: { slug: string }) => s.slug === serviceSlug);
+        if (match) {
+          setApiService({ title: match.title, price: match.price, service_name: match.service_name });
+        }
+      })
+      .catch(() => {
+        // Leave the static catalog fallback in place.
+      });
+
+    return () => controller.abort();
+  }, [serviceSlug, categorySlug]);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [numberOfMonths, setNumberOfMonths] = useState(2);
@@ -255,6 +296,8 @@ export default function BookAppointmentWizard() {
     }
     setFormData((prev) => ({ ...prev, [name]: val }));
     setSaveError("");
+    // Ticking the box clears the prompt to accept the terms.
+    if (name === "agreeToTerms") setTermsError("");
     // Clear error when field is edited
     if (step2Errors[name] || name === "dobMonth" || name === "dobDay" || name === "dobYear") {
       setStep2Errors((prev) => {
@@ -386,6 +429,13 @@ export default function BookAppointmentWizard() {
           break;
         }
       }
+
+      // Not in the static catalog, so it came from the database.
+      if (resolvedServiceName === "General Consultation" && apiService) {
+        resolvedServiceName = apiService.title;
+        resolvedCategory = apiService.service_name || "Blood Tests";
+        resolvedPrice = apiService.price || "POA";
+      }
     }
     return { serviceName: resolvedServiceName, category: resolvedCategory, price: resolvedPrice };
   };
@@ -393,6 +443,15 @@ export default function BookAppointmentWizard() {
   const [step2Errors, setStep2Errors] = useState<{ [key: string]: string }>({});
   const [savingCustomer, setSavingCustomer] = useState(false);
   const [saveError, setSaveError] = useState("");
+  /**
+   * The `patients.id` step 2 wrote, carried to step 4 so the appointment is
+   * attached to that exact person.
+   */
+  const [savedPatientId, setSavedPatientId] = useState("");
+  /** Shown when Continue is pressed on step 3 without the terms being accepted. */
+  const [termsError, setTermsError] = useState("");
+  /** Step 4 reviews first; the card form is revealed by the "Pay" button. */
+  const [paymentOpen, setPaymentOpen] = useState(false);
 
   const validateStep2 = () => {
     const errors: { [key: string]: string } = {};
@@ -490,6 +549,8 @@ export default function BookAppointmentWizard() {
           state: formData.state.trim() || null,
           zip_code: formData.zipCode.trim() || null,
           country: formData.country.trim() || null,
+          // Defer writing the appointment until payment is confirmed.
+          defer_appointment: true,
         }),
       });
 
@@ -498,6 +559,14 @@ export default function BookAppointmentWizard() {
       if (!res.ok) {
         setSaveError(data.message || "We could not save your details. Please try again.");
         return false;
+      }
+
+      // The id of the `patients` row just written. Step 4 sends it back so the
+      // appointment is attached to exactly this person: a relative has no
+      // customer account to be found by, and a shared surname is not unique
+      // enough to look them up by name.
+      if (data?.patient?.id) {
+        setSavedPatientId(String(data.patient.id));
       }
 
       // Keep the signed-in profile in localStorage in sync with what we saved,
@@ -531,27 +600,109 @@ export default function BookAppointmentWizard() {
     }
   };
 
-  const handleNext = async () => {
-    if (currentStep === 2) {
-      if (!validateStep2()) {
-        window.scrollTo(0, 0);
-        return;
-      }
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
+  /** The appointment row id held by "Continue to Payment", paid for by "Pay". */
+  const [heldAppointmentId, setHeldAppointmentId] = useState("");
 
-      const saved = await saveBookingDetails();
-      if (!saved) {
-        window.scrollTo(0, 0);
-        return;
-      }
+  /** The payload both step-4 buttons send, so the two calls cannot drift apart. */
+  const buildConfirmPayload = () => ({
+    booking_for: (localStorage.getItem("booking_for") as "self" | "other" | null) || "self",
+    // The account that owns the booking. This is the person paying, which is
+    // not the patient when booking for a relative or friend, so it is sent
+    // explicitly rather than left to be inferred from the patient's email.
+    booked_by_email:
+      localStorage.getItem("is_signed_in") === "true"
+        ? localStorage.getItem("user_email") || ""
+        : "",
+    patient_id: savedPatientId || null,
+    appointment_date: formData.date,
+    start_time: formData.time,
+    service_name: resolveService().serviceName,
+    notes: formData.notes.trim() || null,
+    email: formData.email.trim(),
+    first_name: formData.firstName.trim(),
+    last_name: formData.lastName.trim(),
+    title: formData.title || null,
+    phone: formData.mobile.trim() || null,
+    address_line_1: formData.address1.trim() || null,
+    address_line_2: formData.address2.trim() || null,
+    suburb: formData.suburb.trim() || null,
+    city: formData.city.trim() || null,
+    state: formData.state.trim() || null,
+    zip_code: formData.zipCode.trim() || null,
+    country: formData.country.trim() || null,
+    amount: resolveService().price,
+    payment_method: "Card",
+  });
+
+  const postConfirm = async (payload: Record<string, unknown>) => {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+    const res = await fetch(`${API_URL}/bookings/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to confirm the booking.");
     }
 
-    if (currentStep < steps.length) {
-      setCurrentStep(currentStep + 1);
-      window.scrollTo(0, 0);
-    } else {
-      // Save this new booking to localStorage under user_bookings
-      const { serviceName: resolvedServiceName, category: resolvedCategory, price: resolvedPrice } = resolveService();
+    return data;
+  };
 
+  /**
+   * "Continue to Payment" — writes the appointment and nothing else.
+   *
+   * No payment is taken and no redirect happens here: the slot is held as
+   * Pending and the user stays on step 4 to enter their card. `record_payment`
+   * is false so the `payments` row waits for the Pay button.
+   */
+  const holdAppointment = async () => {
+    setConfirmingPayment(true);
+    setSaveError("");
+
+    try {
+      const data = await postConfirm({ ...buildConfirmPayload(), record_payment: false });
+
+      if (data?.appointment?.id) {
+        setHeldAppointmentId(String(data.appointment.id));
+      }
+
+      setPaymentOpen(true);
+      return true;
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Failed to save your appointment.");
+      window.scrollTo(0, 0);
+      return false;
+    } finally {
+      setConfirmingPayment(false);
+    }
+  };
+
+  /**
+   * "Pay" — takes the payment, then shows the confirmation page.
+   *
+   * This is the only step that writes to `payments` and the only one that
+   * leaves step 4, so the booking is not announced as confirmed until the
+   * customer has actually paid for it.
+   */
+  const payAndFinish = async () => {
+    setConfirmingPayment(true);
+    setSaveError("");
+
+    try {
+      // `appointment_id` points at the row "Continue to Payment" inserted, so the
+      // payment settles that booking instead of inserting a second one.
+      await postConfirm({
+        ...buildConfirmPayload(),
+        record_payment: true,
+        appointment_id: heldAppointmentId || null,
+      });
+
+      // Kept for the confirmation page and the local "My Bookings" list.
+      const { serviceName: resolvedServiceName, category: resolvedCategory, price: resolvedPrice } = resolveService();
       const newBooking = {
         id: Math.random().toString(36).substr(2, 9),
         serviceSlug,
@@ -563,18 +714,64 @@ export default function BookAppointmentWizard() {
         patientName: [formData.title, formData.firstName, formData.lastName].filter(Boolean).join(" ").trim() || null,
         patientEmail: formData.email || null,
       };
-
       const existingBookings = JSON.parse(localStorage.getItem("user_bookings") || "[]");
       existingBookings.push(newBooking);
       localStorage.setItem("user_bookings", JSON.stringify(existingBookings));
 
-      // Final step: Proceed to payment / confirmation
+      // The name is passed through because most services — every blood test in
+      // particular — are not in the small static catalog, so the confirmation
+      // page cannot resolve the slug on its own and would say
+      // "General Consultation".
       const queryParams = new URLSearchParams();
       if (serviceSlug) queryParams.set("service", serviceSlug);
+      if (resolvedServiceName) queryParams.set("name", resolvedServiceName);
       if (formData.date) queryParams.set("date", formData.date);
       if (formData.time) queryParams.set("time", formData.time);
       router.push(`/booking-confirmation?${queryParams.toString()}`);
+      return true;
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Failed to take the payment.");
+      window.scrollTo(0, 0);
+      return false;
+    } finally {
+      setConfirmingPayment(false);
     }
+  };
+
+  const handleNext = async () => {
+    // The terms box is a hard requirement, but the button stays enabled so the
+    // reason is explained rather than the button silently doing nothing.
+    if (currentStep === 3 && !formData.agreeToTerms) {
+      setTermsError("Please accept the Booking Terms and Conditions before continuing.");
+      return;
+    }
+
+    if (currentStep === 2) {
+      if (!validateStep2()) {
+        window.scrollTo(0, 0);
+        return;
+      }
+
+      const saved = await saveBookingDetails();
+      if (!saved) {
+        window.scrollTo(0, 0);
+        return;
+      }
+
+      // Step 2 may have been revisited to change who the appointment is for. Any
+      // slot held for the previous person no longer applies, so step 4 has to
+      // hold the new one rather than settle the old appointment.
+      if (heldAppointmentId) {
+        setHeldAppointmentId("");
+        setPaymentOpen(false);
+      }
+    }
+
+    if (currentStep < steps.length) {
+      setCurrentStep(currentStep + 1);
+      window.scrollTo(0, 0);
+    }
+    // On the last step the step-4 buttons drive the commit, not this handler.
   };
 
   const handleBack = () => {
@@ -587,6 +784,15 @@ export default function BookAppointmentWizard() {
   // Mock data for dates and times
   const availableDates = ["2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-12"];
   const availableTimes = ["09:00 AM", "10:30 AM", "12:00 PM", "02:00 PM", "03:30 PM", "05:00 PM"];
+
+  /**
+   * The service and category picked via `?service=`, shown at the top of each
+   * step so it is always clear what is being booked. Step 4 is excluded because
+   * its own "Appointment Summary" already lists these. `null` when no service was
+   * passed in the URL, so the panel stays hidden rather than advertising a
+   * default that was never chosen.
+   */
+  const selectedService = serviceSlug ? resolveService() : null;
 
   return (
     <div className="w-full max-w-4xl mx-auto rounded-3xl bg-white shadow-xl shadow-[#1E227D]/5 border border-zinc-100 overflow-hidden">
@@ -641,6 +847,29 @@ export default function BookAppointmentWizard() {
             transition={{ duration: 0.5, ease: "easeInOut" }}
           />
         </div>
+        {/* SELECTED SERVICE & CATEGORY — every step except the review, which
+            already shows these in its own "Appointment Summary". */}
+        {selectedService && currentStep !== 4 && (
+          <div className="mt-6 rounded-2xl border border-zinc-200 overflow-hidden">
+            <div className="bg-[#1E227D] px-5 py-3">
+              <h3 className="font-display text-sm font-bold uppercase tracking-wider text-white">
+                Selected Service
+              </h3>
+            </div>
+            <dl className="divide-y divide-zinc-100">
+              {[
+                { label: "Service", value: selectedService.serviceName },
+                { label: "Category", value: selectedService.category },
+                { label: "Price", value: selectedService.price },
+              ].map((row) => (
+                <div key={row.label} className="flex items-start justify-between gap-6 px-5 py-3">
+                  <dt className="font-body text-sm font-semibold text-zinc-500 shrink-0">{row.label}</dt>
+                  <dd className="font-body text-sm font-semibold text-[#2D2136] text-right">{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
       </div>
 
       {/* FORM CONTENT */}
@@ -867,7 +1096,11 @@ export default function BookAppointmentWizard() {
                           <option value="">Select</option>
                           <option value="Male">Male</option>
                           <option value="Female">Female</option>
-                          <option value="Other">Other</option>
+                          <option value="Non-binary">Non-binary</option>
+                          <option value="Prefer not to say">I&rsquo;d rather not say</option>
+                          {/* Retired from the list, but anyone saved with it
+                              before must still show their stored value. */}
+                          {newPersonForm.gender === "Other" && <option value="Other">Other</option>}
                         </select>
                       </div>
                       <div className="flex flex-col gap-1.5">
@@ -1087,7 +1320,11 @@ export default function BookAppointmentWizard() {
                       <option value="">Select</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
-                      <option value="Other">Other</option>
+                      <option value="Non-binary">Non-binary</option>
+                      <option value="Prefer not to say">I&rsquo;d rather not say</option>
+                      {/* Retired from the list, but anyone saved with it
+                          before must still show their stored value. */}
+                      {formData.gender === "Other" && <option value="Other">Other</option>}
                     </select>
                     {step2Errors.gender && <p className="font-body text-xs text-red-500 mt-1">{step2Errors.gender}</p>}
                   </div>
@@ -1277,7 +1514,22 @@ export default function BookAppointmentWizard() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 bg-[#E0A2F5]/10 border border-[#E0A2F5]/30 p-4 rounded-xl">
+                {termsError && (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-body text-xs font-semibold text-red-700"
+                  >
+                    {termsError}
+                  </div>
+                )}
+
+                <div
+                  className={`flex items-center gap-3 border p-4 rounded-xl ${
+                    termsError
+                      ? "border-red-200 bg-red-50/60"
+                      : "bg-[#E0A2F5]/10 border-[#E0A2F5]/30"
+                  }`}
+                >
                   <input
                     type="checkbox"
                     id="agreeToTerms"
@@ -1324,6 +1576,48 @@ export default function BookAppointmentWizard() {
                   </dl>
                 </div>
 
+                {saveError && (
+                  <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-body text-xs font-semibold text-red-700">
+                    {saveError}
+                  </div>
+                )}
+
+                {/* Step 4 reviews the booking first; the card form is only
+                    revealed once the visitor commits to paying. Labelled
+                    "Continue to Payment" rather than "Pay" so exactly one
+                    button on the page reads "Pay" — the real commit action. */}
+                {!paymentOpen && (
+                  <div className="rounded-2xl border border-dashed border-[#1E227D]/25 bg-[#1E227D]/[0.03] px-5 py-6 flex flex-col items-center gap-4 text-center">
+                    <p className="font-body text-sm text-zinc-500">
+                      Ready to book? Continue to secure payment to confirm your appointment.
+                    </p>
+                    <Button
+                      variant="primary"
+                      onClick={holdAppointment}
+                      className="w-full !py-4 shadow-lg shadow-[#F000E2]/20"
+                      icon={<CreditCard size={16} />}
+                      iconPosition="left"
+                      disabled={confirmingPayment}
+                    >
+                      {confirmingPayment ? "Saving appointment…" : "Continue to Payment"}
+                    </Button>
+                    <span className="inline-flex items-center gap-1.5 font-body text-xs text-zinc-500">
+                      <Lock size={12} />
+                      Secure 256-bit encrypted payment
+                    </span>
+                  </div>
+                )}
+
+                <AnimatePresence initial={false}>
+                  {paymentOpen && (
+                    <motion.div
+                      key="payment"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3, ease: "easeInOut" }}
+                      className="overflow-hidden"
+                    >
                 <div className="rounded-2xl border border-zinc-200 overflow-hidden">
                   <div className="bg-[#1E227D] px-5 py-3 flex items-center justify-between">
                     <h3 className="font-display text-sm font-bold uppercase tracking-wider text-white">Online Payment</h3>
@@ -1386,8 +1680,29 @@ export default function BookAppointmentWizard() {
                         </span>
                       ))}
                     </div>
+
+                    {/* The only "Pay" button — it takes the payment and then shows the
+                        confirmation page. Nothing before this point writes to
+                        `payments` or claims the booking is confirmed. */}
+                    <Button
+                      variant="primary"
+                      onClick={payAndFinish}
+                      className="w-full !py-4 shadow-lg shadow-[#F000E2]/20"
+                      icon={<Lock size={16} />}
+                      iconPosition="left"
+                      disabled={confirmingPayment}
+                    >
+                      {confirmingPayment
+                        ? "Processing…"
+                        : isPayablePrice(resolveService().price)
+                        ? `Pay ${resolveService().price} Now`
+                        : "Pay Now"}
+                    </Button>
                   </div>
                 </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             )}
           </motion.div>
@@ -1403,19 +1718,21 @@ export default function BookAppointmentWizard() {
             Back
           </Button>
 
+          {/* Hidden on step 4: that step commits through "Continue to
+              Payment" and "Pay" in the card above, so there is no
+              "Confirm Booking" button here — just "Back". */}
           <Button
             variant="primary"
             onClick={handleNext}
-            className="!px-8 !py-3 shadow-lg shadow-[#F000E2]/20"
+            className={`!px-8 !py-3 shadow-lg shadow-[#F000E2]/20 ${currentStep === 4 ? 'invisible' : ''}`}
             disabled={
               savingCustomer ||
-              (currentStep === 1 && (!formData.date || !formData.time)) ||
-              (currentStep === 3 && !formData.agreeToTerms)
+              (currentStep === 1 && (!formData.date || !formData.time))
             }
             icon={currentStep < 4 ? <ChevronRight size={16} /> : undefined}
             iconPosition="left"
           >
-            {savingCustomer ? "Saving..." : currentStep === 4 ? "Confirm Booking" : "Continue"}
+            {savingCustomer ? "Saving..." : "Continue"}
           </Button>
         </div>
       </div>

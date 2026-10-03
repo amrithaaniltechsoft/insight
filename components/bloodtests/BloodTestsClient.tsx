@@ -467,10 +467,8 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
                                 </div>
                               )}
 
-                              <a
-                                href="https://insight-health-services.book.app/"
-                                target="_blank"
-                                rel="noopener noreferrer"
+                              <Link
+                                href={`/book-appointment?service=${test.slug}&category=blood-tests`}
                                 className="mt-auto"
                               >
                                 <Button
@@ -482,7 +480,7 @@ export default function BloodTestsClient({ tests }: BloodTestsClientProps) {
                                   BOOK <span className="hidden sm:inline">DIAGNOSTICS</span>
                                   <span className="inline sm:hidden">NOW</span>
                                 </Button>
-                              </a>
+                              </Link>
                             </div>
                           </div>
                         );

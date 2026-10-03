@@ -13,15 +13,28 @@ export default function BookingConfirmationClient() {
   const dateStr = searchParams.get("date") || "";
   const timeStr = searchParams.get("time") || "";
 
-  // Find service name from slug
-  let serviceName = "General Consultation";
-  if (serviceSlug) {
-    for (const categoryKey in servicesData) {
-      const category = servicesData[categoryKey];
-      const foundScan = category.scans.find((s) => s.slug === serviceSlug);
-      if (foundScan) {
-        serviceName = foundScan.title;
-        break;
+  /**
+   * The service name the wizard actually resolved, passed through the URL.
+   *
+   * The static `servicesData` catalog only holds a handful of services, so
+   * resolving the slug here showed "General Consultation" for everything else —
+   * every blood test in particular. The wizard already has the real title
+   * (fetched from the API), so that is preferred and the catalog is only the
+   * fallback for a link that arrives without it.
+   */
+  const resolvedName = searchParams.get("name") || "";
+
+  let serviceName = resolvedName;
+  if (!serviceName) {
+    serviceName = "General Consultation";
+    if (serviceSlug) {
+      for (const categoryKey in servicesData) {
+        const category = servicesData[categoryKey];
+        const foundScan = category.scans.find((s) => s.slug === serviceSlug);
+        if (foundScan) {
+          serviceName = foundScan.title;
+          break;
+        }
       }
     }
   }
