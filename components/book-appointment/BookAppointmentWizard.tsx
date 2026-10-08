@@ -37,10 +37,24 @@ export default function BookAppointmentWizard() {
    * so the summary shows the test that was actually chosen rather than falling
    * back to "General Consultation".
    */
-  const [apiService, setApiService] = useState<{ title: string; price: string | null; service_name: string | null } | null>(null);
+  const [apiService, setApiService] = useState<{ id: number; title: string; price: string | null; service_name: string | null } | null>(null);
 
+  /**
+   * Resolves `?service=` to its row in `services`, whenever it can.
+   *
+   * The id matters more than the title: `POST /bookings` used to match a
+   * service by exact name only, which fails for duplicated titles and for the
+   * placeholder this wizard falls back to ("General Consultation"). The result
+   * was an appointment with `service_id` null and nothing ticked under
+   * "Services (Check multiple if applicable)" in the admin Booking Details
+   * drawer. Sending the id makes the link exact.
+   *
+   * `useBookNow` puts only `service` in the URL, so the category-scoped
+   * endpoint is used when a category is present and the slug-only one
+   * otherwise.
+   */
   useEffect(() => {
-    if (!serviceSlug || !categorySlug) {
+    if (!serviceSlug) {
       setApiService(null);
       return;
     }
@@ -48,12 +62,18 @@ export default function BookAppointmentWizard() {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
     const controller = new AbortController();
 
-    fetch(`${API_URL}/services/category/${categorySlug}`, { signal: controller.signal })
+    const endpoint = categorySlug
+      ? `${API_URL}/services/category/${categorySlug}`
+      : `${API_URL}/services/slug/${serviceSlug}`;
+
+    fetch(endpoint, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        const match = (data?.services || []).find((s: { slug: string }) => s.slug === serviceSlug);
+        const match = categorySlug
+          ? (data?.services || []).find((s: { slug: string }) => s.slug === serviceSlug)
+          : data?.service;
         if (match) {
-          setApiService({ title: match.title, price: match.price, service_name: match.service_name });
+          setApiService({ id: match.id, title: match.title, price: match.price, service_name: match.service_name });
         }
       })
       .catch(() => {
@@ -534,6 +554,9 @@ export default function BookAppointmentWizard() {
           appointment_date: formData.date,
           start_time: formData.time,
           service_name: resolveService().serviceName,
+          // The row the slug resolved to, so the appointment is linked to the
+          // exact service rather than to a name that may match nothing.
+          service_id: apiService?.id ?? null,
           notes: formData.notes.trim() || null,
           email: formData.email.trim(),
           first_name: formData.firstName.trim(),
@@ -618,6 +641,9 @@ export default function BookAppointmentWizard() {
     appointment_date: formData.date,
     start_time: formData.time,
     service_name: resolveService().serviceName,
+    // Same id step 2 resolves: this is the call that writes the appointment,
+    // so dropping it here would leave the booking unlinked to its service.
+    service_id: apiService?.id ?? null,
     notes: formData.notes.trim() || null,
     email: formData.email.trim(),
     first_name: formData.firstName.trim(),
