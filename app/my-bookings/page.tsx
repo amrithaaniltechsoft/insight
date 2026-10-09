@@ -53,11 +53,16 @@ export default function MyBookingsPage() {
           appointments.map((appointment) => ({
             id: String(appointment.id),
             serviceSlug: resolveServiceSlug(appointment),
-            serviceName: appointment.service_name || "General Consultation",
+            serviceName:
+              appointment.service_names ||
+              appointment.service_name ||
+              "General Consultation",
             category: appointment.category_name || "Consultations",
             date: appointment.appointment_date,
             time: formatTime(appointment.start_time),
-            price: formatPrice(appointment.service_price),
+            price: formatPrice(
+              appointment.total_price ?? appointment.service_price
+            ),
             patientName: appointment.patient_name,
             appointmentCode: appointment.appointment_code,
             status: appointment.status,

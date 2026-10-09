@@ -63,11 +63,16 @@ function toPersonBooking(appointment: Appointment): PersonBooking {
   return {
     id: String(appointment.id),
     serviceSlug: resolveServiceSlug(appointment),
-    serviceName: appointment.service_name || "General Consultation",
+    serviceName:
+      appointment.service_names ||
+      appointment.service_name ||
+      "General Consultation",
     category: appointment.category_name || "Consultations",
     date: appointment.appointment_date,
     time: formatTime(appointment.start_time),
-    price: formatPrice(appointment.service_price),
+    price: formatPrice(
+      appointment.total_price ?? appointment.service_price
+    ),
     appointmentCode: appointment.appointment_code,
     status: appointment.status,
     paymentStatus: appointment.payment_status,

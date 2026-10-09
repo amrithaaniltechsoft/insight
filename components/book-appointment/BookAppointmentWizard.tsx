@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronRight, CalendarDays, CreditCard, Lock, User, FileText, ClipboardList, Users, UserPlus, X } from "lucide-react";
+import { Check, ChevronRight, CalendarDays, CreditCard, Lock, User, FileText, ClipboardList, Users, UserPlus, X, Plus } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { servicesData } from "@/components/servicelistingpage/servicesData";
 import { fetchPeople, savePerson, getPersonFullName, Person } from "@/lib/people";
@@ -25,6 +25,54 @@ function isPayablePrice(price: string): boolean {
   return /^[£$€]\s?\d/.test(price.trim());
 }
 
+/**
+ * One service inside a (possibly multi-service) booking.
+ *
+ * Seeded from the `?service=` URL, then grown through the "Add to Selected
+ * Services" picker. `id` is the `services` row when the API resolved it — null
+ * for rows only present in the static catalog.
+ */
+interface SelectedService {
+  id: number | null;
+  title: string;
+  serviceName: string;
+  category: string;
+  categorySlug: string;
+  price: string;
+}
+
+/** A service offered by the picker, pulled from the API catalog. */
+interface CatalogService {
+  id: number;
+  title: string;
+  price: string | null;
+}
+
+/** A category group inside the picker. */
+interface CatalogGroup {
+  name: string;
+  slug: string;
+  services: CatalogService[];
+}
+
+/** Pulls the number out of a formatted price like "£55.00". */
+function parsePriceNumeric(price: string): number | null {
+  const numeric = Number(String(price).replace(/[^0-9.]/g, ""));
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+/** "£55" + "£45" -> "£100" (null when any price is unknown/POA). */
+function sumPrices(prices: string[]): string | null {
+  let sum = 0;
+  for (const price of prices) {
+    const numeric = parsePriceNumeric(price);
+    if (numeric === null) return null;
+    sum += numeric;
+  }
+  const formatted = Number.isInteger(sum) ? sum.toFixed(0) : sum.toFixed(2);
+  return `£${formatted}`;
+}
+
 export default function BookAppointmentWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,6 +86,78 @@ export default function BookAppointmentWizard() {
    * back to "General Consultation".
    */
   const [apiService, setApiService] = useState<{ id: number; title: string; price: string | null; service_name: string | null } | null>(null);
+
+  /**
+   * Resolves `?service=` to a display name, category and price.
+   *
+   * The static `servicesData` catalog is searched first (it only hardcodes a
+   * handful of rows); anything else must have come from the database, so the
+   * API-resolved `apiService` supplies the real values. This is only used to
+   * seed the selected-services list — the API id is merged in by
+   * `resolvedServices` once the lookup above lands.
+   */
+  const resolveService = () => {
+    let resolvedServiceName = "General Consultation";
+    let resolvedCategory = "Consultations";
+    let resolvedPrice = "£95.00";
+
+    if (serviceSlug) {
+      for (const catKey in servicesData) {
+        const cat = servicesData[catKey];
+        const foundScan = cat.scans.find((s) => s.slug === serviceSlug);
+        if (foundScan) {
+          resolvedServiceName = foundScan.title;
+          resolvedCategory = catKey === "pregnancy-scans" ? "Pregnancy Scans" : catKey === "diagnostics" ? "Diagnostics" : "Blood Tests";
+          resolvedPrice = foundScan.price || "£95.00";
+          break;
+        }
+      }
+
+      // Not in the static catalog, so it came from the database.
+      if (resolvedServiceName === "General Consultation" && apiService) {
+        resolvedServiceName = apiService.title;
+        resolvedCategory = apiService.service_name || "Blood Tests";
+        resolvedPrice = apiService.price || "POA";
+      }
+    }
+    return { serviceName: resolvedServiceName, category: resolvedCategory, price: resolvedPrice };
+  };
+
+  /**
+   * The services this booking covers, in order. The `?service=` URL seeds the
+   * first one; the picker on steps 1–3 adds and removes the rest.
+   *
+   * The seed is derived rather than held in state because `useSearchParams`
+   * returns the empty value on the hydration render — a lazy initializer would
+   * run once with no slug and the panel would never populate. Deriving it also
+   * handles "book again" links that swap the service mid-session.
+   */
+  const seedServices = useMemo<SelectedService[]>(() => {
+    if (!serviceSlug) return [];
+    const initial = resolveService();
+    return [
+      {
+        id: null,
+        title: initial.serviceName,
+        serviceName: initial.category,
+        category: initial.category,
+        categorySlug: categorySlug || "",
+        price: initial.price,
+      },
+    ];
+    // `resolveService` also reads `apiService`, whose id/price are folded in by
+    // `resolvedServices` below — the static seed is all that is wanted here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceSlug, categorySlug]);
+
+  /** Extra services picked from the "Add to Selected Services" dropdown. */
+  const [addedServices, setAddedServices] = useState<SelectedService[]>([]);
+  /** Titles the user removed, so a removed row cannot silently come back. */
+  const [removedTitles, setRemovedTitles] = useState<string[]>([]);
+  /** The "add a service" picker options, grouped by category. */
+  const [catalogGroups, setCatalogGroups] = useState<CatalogGroup[]>([]);
+  /** Currently highlighted option in the picker ("slug|id" when chosen). */
+  const [pickerValue, setPickerValue] = useState("");
 
   /**
    * Resolves `?service=` to its row in `services`, whenever it can.
@@ -82,6 +202,51 @@ export default function BookAppointmentWizard() {
 
     return () => controller.abort();
   }, [serviceSlug, categorySlug]);
+
+  // Loads the full catalog for the "Add to Selected Services" picker. The
+  // categories and their services come from the API so every option carries a
+  // real id; the static catalog only hardcodes a handful of rows, so it is not
+  // used as an option source here.
+  useEffect(() => {
+    let cancelled = false;
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+
+    (async () => {
+      const groups: CatalogGroup[] = [];
+      try {
+        const catRes = await fetch(`${API_URL}/categories`);
+        if (catRes.ok) {
+          const cats: { name: string; slug: string }[] = await catRes.json();
+          const results = await Promise.all(
+            cats.map(async (cat) => {
+              const res = await fetch(`${API_URL}/services/category/${cat.slug}`);
+              if (!res.ok) return { name: cat.name, slug: cat.slug, services: [] as CatalogService[] };
+              const data = await res.json();
+              return {
+                name: cat.name,
+                slug: cat.slug,
+                services: (data?.services || []).map(
+                  (s: { id: number; title: string; service_name: string; price: string | null }) => ({
+                    id: s.id,
+                    title: s.title || s.service_name,
+                    price: s.price ?? null,
+                  })
+                ),
+              };
+            })
+          );
+          groups.push(...results);
+        }
+      } catch {
+        // The picker stays empty; whatever the URL seeded still works.
+      }
+      if (!cancelled) setCatalogGroups(groups);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [numberOfMonths, setNumberOfMonths] = useState(2);
@@ -433,31 +598,66 @@ export default function BookAppointmentWizard() {
     prefillFromPerson(newPerson);
   };
 
-  const resolveService = () => {
-    let resolvedServiceName = "General Consultation";
-    let resolvedCategory = "Consultations";
-    let resolvedPrice = "£95.00";
+  /**
+   * Everything the multi-service list drives.
+   *
+   * `primaryService` is the row the legacy single `service_id`/`service_name`
+   * fields are taken from, so the admin and older callers keep working while
+   * the full list rides along in `service_ids`.
+   */
+  const resolvedServices = useMemo(() => {
+    const base = [...seedServices, ...addedServices].filter(
+      (s) => !removedTitles.includes(s.title)
+    );
+    if (!apiService) return base;
+    return base.map((s) =>
+      s.id === null && (s.title === apiService.title || s.title === "General Consultation")
+        ? {
+            ...s,
+            id: apiService.id,
+            title: apiService.title,
+            price: apiService.price ?? s.price,
+            serviceName: apiService.service_name ?? s.serviceName,
+          }
+        : s
+    );
+    // The `?service=` API lookup lands after the first render, so its id and
+    // price are folded in here at render time instead of through an effect.
+  }, [seedServices, addedServices, removedTitles, apiService]);
 
-    if (serviceSlug) {
-      for (const catKey in servicesData) {
-        const cat = servicesData[catKey];
-        const foundScan = cat.scans.find((s) => s.slug === serviceSlug);
-        if (foundScan) {
-          resolvedServiceName = foundScan.title;
-          resolvedCategory = catKey === "pregnancy-scans" ? "Pregnancy Scans" : catKey === "diagnostics" ? "Diagnostics" : "Blood Tests";
-          resolvedPrice = foundScan.price || "£95.00";
-          break;
-        }
-      }
+  const primaryService = resolvedServices[0] ?? null;
+  const serviceIds = resolvedServices
+    .map((s) => s.id)
+    .filter((id): id is number => id !== null);
+  const totalPrice = sumPrices(resolvedServices.map((s) => s.price));
+  const servicesLabel =
+    resolvedServices.map((s) => s.title).join(" + ") || "General Consultation";
+  const payableAmount = totalPrice ?? primaryService?.price ?? "";
 
-      // Not in the static catalog, so it came from the database.
-      if (resolvedServiceName === "General Consultation" && apiService) {
-        resolvedServiceName = apiService.title;
-        resolvedCategory = apiService.service_name || "Blood Tests";
-        resolvedPrice = apiService.price || "POA";
-      }
-    }
-    return { serviceName: resolvedServiceName, category: resolvedCategory, price: resolvedPrice };
+  const addService = (catalogService: CatalogService, groupSlug: string, groupName: string) => {
+    // Never the same service twice — the URL seed counts, so a catalog row that
+    // matches an already-selected title is skipped; and re-adding a title the
+    // user just removed brings it straight back.
+    if (resolvedServices.some((s) => s.title === catalogService.title)) return;
+    setAddedServices((prev) => [
+      ...prev,
+      {
+        id: catalogService.id,
+        title: catalogService.title,
+        serviceName: catalogService.title,
+        category: groupName,
+        categorySlug: groupSlug,
+        price: catalogService.price ?? "POA",
+      },
+    ]);
+    setRemovedTitles((prev) => prev.filter((t) => t !== catalogService.title));
+    setPickerValue("");
+  };
+
+  const removeService = (service: SelectedService) => {
+    setRemovedTitles((prev) =>
+      prev.includes(service.title) ? prev : [...prev, service.title]
+    );
   };
 
   const [step2Errors, setStep2Errors] = useState<{ [key: string]: string }>({});
@@ -553,10 +753,12 @@ export default function BookAppointmentWizard() {
           booked_by_email: bookedByEmail,
           appointment_date: formData.date,
           start_time: formData.time,
-          service_name: resolveService().serviceName,
-          // The row the slug resolved to, so the appointment is linked to the
-          // exact service rather than to a name that may match nothing.
-          service_id: apiService?.id ?? null,
+          // The first service is the legacy single-value key; the whole list
+          // rides along in `service_ids` so the appointment is linked to every
+          // selected row rather than to names that may match nothing.
+          service_name: primaryService?.title ?? "General Consultation",
+          service_id: primaryService?.id ?? null,
+          service_ids: serviceIds,
           notes: formData.notes.trim() || null,
           email: formData.email.trim(),
           first_name: formData.firstName.trim(),
@@ -640,10 +842,11 @@ export default function BookAppointmentWizard() {
     patient_id: savedPatientId || null,
     appointment_date: formData.date,
     start_time: formData.time,
-    service_name: resolveService().serviceName,
-    // Same id step 2 resolves: this is the call that writes the appointment,
-    // so dropping it here would leave the booking unlinked to its service.
-    service_id: apiService?.id ?? null,
+    service_name: primaryService?.title ?? "General Consultation",
+    // Same ids step 2 resolves: this is the call that writes the appointment,
+    // so dropping them here would leave the booking unlinked to its services.
+    service_id: primaryService?.id ?? null,
+    service_ids: serviceIds,
     notes: formData.notes.trim() || null,
     email: formData.email.trim(),
     first_name: formData.firstName.trim(),
@@ -657,7 +860,7 @@ export default function BookAppointmentWizard() {
     state: formData.state.trim() || null,
     zip_code: formData.zipCode.trim() || null,
     country: formData.country.trim() || null,
-    amount: resolveService().price,
+    amount: payableAmount,
     payment_method: "Card",
   });
 
@@ -728,15 +931,14 @@ export default function BookAppointmentWizard() {
       });
 
       // Kept for the confirmation page and the local "My Bookings" list.
-      const { serviceName: resolvedServiceName, category: resolvedCategory, price: resolvedPrice } = resolveService();
       const newBooking = {
         id: Math.random().toString(36).substr(2, 9),
         serviceSlug,
-        serviceName: resolvedServiceName,
-        category: resolvedCategory,
+        serviceName: servicesLabel,
+        category: primaryService?.category ?? "Consultations",
         date: formData.date,
         time: formData.time,
-        price: resolvedPrice,
+        price: payableAmount,
         patientName: [formData.title, formData.firstName, formData.lastName].filter(Boolean).join(" ").trim() || null,
         patientEmail: formData.email || null,
       };
@@ -744,13 +946,13 @@ export default function BookAppointmentWizard() {
       existingBookings.push(newBooking);
       localStorage.setItem("user_bookings", JSON.stringify(existingBookings));
 
-      // The name is passed through because most services — every blood test in
-      // particular — are not in the small static catalog, so the confirmation
-      // page cannot resolve the slug on its own and would say
+      // The names are passed through because most services — every blood test
+      // in particular — are not in the small static catalog, so the
+      // confirmation page cannot resolve the slug on its own and would say
       // "General Consultation".
       const queryParams = new URLSearchParams();
       if (serviceSlug) queryParams.set("service", serviceSlug);
-      if (resolvedServiceName) queryParams.set("name", resolvedServiceName);
+      if (servicesLabel) queryParams.set("name", servicesLabel);
       if (formData.date) queryParams.set("date", formData.date);
       if (formData.time) queryParams.set("time", formData.time);
       router.push(`/booking-confirmation?${queryParams.toString()}`);
@@ -811,15 +1013,6 @@ export default function BookAppointmentWizard() {
   const availableDates = ["2026-07-08", "2026-07-09", "2026-07-10", "2026-07-11", "2026-07-12"];
   const availableTimes = ["09:00 AM", "10:30 AM", "12:00 PM", "02:00 PM", "03:30 PM", "05:00 PM"];
 
-  /**
-   * The service and category picked via `?service=`, shown at the top of each
-   * step so it is always clear what is being booked. Step 4 is excluded because
-   * its own "Appointment Summary" already lists these. `null` when no service was
-   * passed in the URL, so the panel stays hidden rather than advertising a
-   * default that was never chosen.
-   */
-  const selectedService = serviceSlug ? resolveService() : null;
-
   return (
     <div className="w-full max-w-4xl mx-auto rounded-3xl bg-white shadow-xl shadow-[#1E227D]/5 border border-zinc-100 overflow-hidden">
       {/* STEPS HEADER */}
@@ -873,27 +1066,92 @@ export default function BookAppointmentWizard() {
             transition={{ duration: 0.5, ease: "easeInOut" }}
           />
         </div>
-        {/* SELECTED SERVICE & CATEGORY — every step except the review, which
+        {/* SELECTED SERVICES & ADD PICKER — every step except the review, which
             already shows these in its own "Appointment Summary". */}
-        {selectedService && currentStep !== 4 && (
+        {(serviceSlug || resolvedServices.length > 0) && currentStep !== 4 && (
           <div className="mt-6 rounded-2xl border border-zinc-200 overflow-hidden">
             <div className="bg-[#1E227D] px-5 py-3">
               <h3 className="font-display text-sm font-bold uppercase tracking-wider text-white">
-                Selected Service
+                Selected Services
               </h3>
             </div>
             <dl className="divide-y divide-zinc-100">
-              {[
-                { label: "Service", value: selectedService.serviceName },
-                { label: "Category", value: selectedService.category },
-                { label: "Price", value: selectedService.price },
-              ].map((row) => (
-                <div key={row.label} className="flex items-start justify-between gap-6 px-5 py-3">
-                  <dt className="font-body text-sm font-semibold text-zinc-500 shrink-0">{row.label}</dt>
-                  <dd className="font-body text-sm font-semibold text-[#2D2136] text-right">{row.value}</dd>
+              {resolvedServices.map((svc) => (
+                <div key={svc.title} className="flex items-start justify-between gap-6 px-5 py-3">
+                  <dt className="font-body text-sm font-semibold text-zinc-600 shrink-0">{svc.title}</dt>
+                  <dd className="flex items-center gap-3">
+                    <span className="font-body text-sm font-semibold text-[#2D2136] text-right">
+                      {svc.price}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeService(svc)}
+                      className="p-1 rounded-full text-zinc-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      aria-label={`Remove ${svc.title}`}
+                    >
+                      <X size={14} />
+                    </button>
+                  </dd>
                 </div>
               ))}
+              {resolvedServices.length === 0 && (
+                <div className="px-5 py-3 font-body text-sm text-zinc-400">
+                  No service selected.
+                </div>
+              )}
+              {resolvedServices.length > 1 && totalPrice && (
+                <div className="flex items-start justify-between gap-6 px-5 py-3 bg-[#1E227D]/[0.04]">
+                  <dt className="font-body text-sm font-bold text-[#2D2136] shrink-0">Total</dt>
+                  <dd className="font-body text-sm font-bold text-[#1E227D] text-right">{totalPrice}</dd>
+                </div>
+              )}
             </dl>
+
+            {/* Add another service — options already selected are hidden. */}
+            {catalogGroups.length > 0 && (
+              <div className="border-t border-zinc-200 bg-zinc-50/50 px-5 py-4 flex flex-col sm:flex-row gap-3">
+                <select
+                  value={pickerValue}
+                  onChange={(e) => setPickerValue(e.target.value)}
+                  className="w-full sm:flex-1 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 font-body text-sm text-[#2D2136] outline-none transition-colors focus:border-[#1E227D]"
+                  aria-label="Choose a service to add"
+                >
+                  <option value="">Choose a service…</option>
+                  {catalogGroups
+                    .map((group) => ({
+                      ...group,
+                      services: group.services.filter(
+                        (s) => !resolvedServices.some((sel) => sel.title === s.title)
+                      ),
+                    }))
+                    .filter((group) => group.services.length > 0)
+                    .map((group) => (
+                      <optgroup key={group.slug} label={group.name}>
+                        {group.services.map((svc) => (
+                          <option key={svc.id} value={`${group.slug}|${svc.id}`}>
+                            {svc.title}
+                            {svc.price ? ` — ${svc.price}` : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  disabled={!pickerValue}
+                  onClick={() => {
+                    const [groupSlug, id] = pickerValue.split("|");
+                    const group = catalogGroups.find((g) => g.slug === groupSlug);
+                    const svc = group?.services.find((s) => String(s.id) === id);
+                    if (group && svc) addService(svc, group.slug, group.name);
+                  }}
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-[#1E227D] to-[#F000E2] px-5 py-2.5 font-body text-xs font-bold text-white shadow-md transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <Plus size={14} />
+                  Add to Selected Services
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1584,15 +1842,20 @@ export default function BookAppointmentWizard() {
                   </div>
                   <dl className="divide-y divide-zinc-100">
                     {[
-                      { label: "Service", value: `${resolveService().serviceName}${formData.date ? "" : ""}` },
-                      { label: "Category", value: resolveService().category },
+                      // Each selected service gets its own row; the total
+                      // appears once there is more than one.
+                      ...(resolvedServices.length > 0
+                        ? resolvedServices.map((svc) => ({ label: svc.title, value: svc.price }))
+                        : [{ label: "Service", value: "General Consultation" }]),
+                      ...(resolvedServices.length > 1
+                        ? [{ label: "Total", value: totalPrice ?? "POA" }]
+                        : []),
                       { label: "Date", value: formData.date ? new Date(formData.date + "T00:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "—" },
                       { label: "Time", value: formData.time || "—" },
                       { label: "Patient", value: [formData.title, formData.firstName, formData.lastName].filter(Boolean).join(" ") || "—" },
                       { label: "Email", value: formData.email || "—" },
                       { label: "Mobile", value: formData.mobile || "—" },
                       { label: "Notes", value: formData.notes || "None" },
-                      { label: "Price", value: resolveService().price },
                     ].map((row) => (
                       <div key={row.label} className="flex items-start justify-between gap-6 px-5 py-3">
                         <dt className="font-body text-sm font-semibold text-zinc-500 shrink-0">{row.label}</dt>
@@ -1656,9 +1919,11 @@ export default function BookAppointmentWizard() {
                     <div className="flex items-center justify-between rounded-xl bg-zinc-50 border border-zinc-200 px-4 py-3">
                       <div className="flex flex-col">
                         <span className="font-body text-xs text-zinc-500">Amount Due</span>
-                        <span className="font-display text-xl font-bold text-[#1E227D]">{resolveService().price}</span>
+                        <span className="font-display text-xl font-bold text-[#1E227D]">
+                          {payableAmount || "POA"}
+                        </span>
                       </div>
-                      <span className="font-body text-xs text-zinc-500">{resolveService().serviceName}</span>
+                      <span className="font-body text-xs text-zinc-500 max-w-[45%] text-right">{servicesLabel}</span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1720,8 +1985,8 @@ export default function BookAppointmentWizard() {
                     >
                       {confirmingPayment
                         ? "Processing…"
-                        : isPayablePrice(resolveService().price)
-                        ? `Pay ${resolveService().price} Now`
+                        : isPayablePrice(payableAmount)
+                        ? `Pay ${payableAmount} Now`
                         : "Pay Now"}
                     </Button>
                   </div>

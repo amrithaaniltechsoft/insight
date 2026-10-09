@@ -16,9 +16,15 @@ export interface Appointment {
   patient_code: string;
   patient_name: string;
   service_id: number | null;
+  /** The primary service's name — safe for slug resolution. */
   service_name: string | null;
+  /** Every selected service, joined with " + ", for display. */
+  service_names: string | null;
+  service_ids: number[];
   service_group: string | null;
   service_price: string | null;
+  /** Sum of every selected service's price — shows the booking total. */
+  total_price: string | null;
   category_name: string | null;
   category_slug: string | null;
   /** YYYY-MM-DD */
