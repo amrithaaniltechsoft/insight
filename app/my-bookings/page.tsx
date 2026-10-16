@@ -34,8 +34,9 @@ export default function MyBookingsPage() {
   const [error, setError] = useState("");
 
   // Appointments are read from the `appointments` table, which is written when
-  // the booking wizard reaches Continue. The previous localStorage read only
-  // ever saw bookings the user finished in that browser session.
+  // the booking wizard reaches Continue. Clinical reports are created by the
+  // admin portal and listed on the My Results page instead of here. Both are
+  // keyed by the signed-in customer's email.
   useEffect(() => {
     const customerEmail =
       localStorage.getItem("is_signed_in") === "true"

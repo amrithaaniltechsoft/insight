@@ -1,0 +1,171 @@
+.report-page {
+  min-height: 100vh;
+  padding: 20px;
+  background: #f1f3f5;
+  overflow-x: auto;
+  font-family: "Arial Narrow", Arial, Helvetica, sans-serif;
+}
+
+.report-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto 20px;
+}
+
+.report-toolbar button {
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 12px 24px;
+}
+
+.download-btn {
+  background: #17365d;
+  color: #fff;
+}
+
+.download-btn:hover {
+  background: #244b7a;
+}
+
+.back-btn {
+  background: #fff;
+  color: #17365d;
+  border: 1px solid #cfd8e3 !important;
+}
+
+.back-btn:hover {
+  background: #eef3f9;
+}
+
+.report-status {
+  margin: 40px auto;
+  max-width: 500px;
+  text-align: center;
+  color: #555;
+  font-size: 14px;
+}
+
+/* A4 portrait sheet (210mm @96dpi ~= 794px) */
+.report {
+  width: 794px;
+  margin: 0 auto;
+  background: #fff;
+  color: #000;
+  font-size: 11px;
+  box-sizing: border-box;
+  border: 1px solid #000;
+  font-family: "Arial Narrow", Arial, Helvetica, sans-serif;
+}
+
+.report-letterhead {
+  display: block;
+  width: 100%;
+  border-bottom: 2px solid #000;
+}
+
+.report-title-bar {
+  background: #e6deb4;
+  border-bottom: 1px solid #000;
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
+  line-height: 1.3;
+  padding: 10px 12px;
+}
+
+.report-findings-title {
+  border: 1px solid #000;
+  border-top: none;
+  text-align: center;
+  font-weight: bold;
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 32px 12px;
+}
+
+.report table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.report td {
+  height: 27px;
+  padding: 7px 8px;
+  border: 1px solid #000;
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: break-word;
+  font-size: 11px;
+}
+
+.report .lbl {
+  background: #e6deb4;
+  font-weight: bold;
+}
+
+.report .gap-col {
+  border: none;
+}
+
+.report tr.gap td {
+  border: none;
+  height: 11px;
+  padding: 0;
+}
+
+.report .comments-label {
+  font-weight: bold;
+  font-size: 12px;
+  padding: 8px 10px;
+}
+
+.report .comments-body {
+  background: #e6deb4;
+  height: 88px;
+  padding: 14px 12px;
+  vertical-align: top;
+  line-height: 1.6;
+  font-size: 12px;
+}
+
+.report .verified {
+  text-align: center;
+  font-weight: bold;
+  background: #fff;
+}
+
+.report-footer-band {
+  display: block;
+  width: 100%;
+  border-top: 2px solid #000;
+  margin-top: -1px;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  .report-page {
+    min-height: auto;
+    padding: 0;
+    background: #fff;
+    overflow: visible;
+  }
+
+  .report-toolbar {
+    display: none;
+  }
+
+  .report {
+    width: 100%;
+    margin: 0;
+    border: none;
+  }
+}

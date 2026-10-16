@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "framer-motion": "^12.40.0",
+    "html2canvas": "^1.4.1",
     "js-yaml": "^4.3.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^1.20.0",
     "mysql2": "^3.23.3",
     "next": "16.3.0-preview.7",
