@@ -11,6 +11,7 @@ import { navigationData as staticNavigationData } from "./navigation";
 import SignInModal from "@/components/signin/SignInModal";
 import BookAppointmentModal from "./BookAppointmentModal";
 import { useBookNow } from "@/hooks/useBookNow";
+import { clearAuthToken } from "@/lib/auth";
 
 interface Category {
   id: number;
@@ -276,6 +277,7 @@ export default function Header({ contact1 = '01922 351933', contact2 = '07777 13
   }, []);
 
   const handleSignOut = () => {
+    clearAuthToken();
     localStorage.removeItem("is_signed_in");
     localStorage.removeItem("user_email");
     localStorage.removeItem("user_first_name");

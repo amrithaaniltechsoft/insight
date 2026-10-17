@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CheckCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { setAuthToken } from "@/lib/auth";
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -280,6 +281,10 @@ export default function SignInModal({ isOpen, onClose, onSignInSuccess }: SignIn
                           if (checkData.exists) {
                             // Existing user — log them in directly
                             const c = checkData.customer;
+                            // The token from the verify-otp response identifies
+                            // this customer to the API from now on, instead of
+                            // the email address alone.
+                            setAuthToken(data.token);
                             localStorage.setItem("is_signed_in", "true");
                             localStorage.setItem("user_email", c.email || email);
                             localStorage.setItem("user_first_name", c.first_name || "");
@@ -467,6 +472,9 @@ export default function SignInModal({ isOpen, onClose, onSignInSuccess }: SignIn
                           setLoading(false);
                           return;
                         }
+                        // Registration signs the new account in, so the token
+                        // from the response starts the session here too.
+                        setAuthToken(data.token);
                         localStorage.setItem("is_signed_in", "true");
                         localStorage.setItem("user_email", email);
                         localStorage.setItem("user_first_name", firstName);

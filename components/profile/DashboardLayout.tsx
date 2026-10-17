@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { User, CalendarDays, FileText, Users, UserPlus, ChevronRight, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchPeople, getPersonFullName, Person } from "@/lib/people";
+import { clearAuthToken } from "@/lib/auth";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -57,6 +58,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, []);
 
   const handleSignOut = () => {
+    clearAuthToken();
     localStorage.removeItem("is_signed_in");
     localStorage.removeItem("user_mobile");
     localStorage.removeItem("user_first_name");

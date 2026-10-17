@@ -9,6 +9,8 @@
  * altered, so it is kept in localStorage purely as a display label.
  */
 
+import { authHeaders } from "./auth";
+
 export interface PersonAddressParts {
   address1: string;
   address2: string;
@@ -226,7 +228,12 @@ export async function fetchPeople(customerEmail: string): Promise<Person[]> {
   const query = new URLSearchParams({ customer_email: customerEmail });
   const response = await fetch(peopleEndpoint(`?${query.toString()}`), {
     cache: "no-store",
+    headers: authHeaders(),
   });
+
+  // 401 is the API saying a token is required (or that the session expired).
+  // That is an empty list, not an error: the caller shows "no saved people".
+  if (response.status === 401) return [];
 
   if (!response.ok) {
     throw new Error(
@@ -243,7 +250,7 @@ export async function savePerson(input: SavePersonInput): Promise<Person> {
   const parts = input.address ?? EMPTY_PARTS;
   const response = await fetch(peopleEndpoint(), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({
       customer_email: input.customerEmail,
       patient_id: input.patientId,
@@ -306,6 +313,7 @@ export async function deletePerson(
   const response = await fetch(peopleEndpoint(`?${query.toString()}`), {
     method: "DELETE",
     cache: "no-store",
+    headers: authHeaders(),
   });
 
   if (!response.ok) {
